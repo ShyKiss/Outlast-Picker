@@ -1,8 +1,8 @@
 # Picker
 ## What is that?
 
-Picker is a mod for Outlast that includes many features.
-Mod based on Outlast SpeedrunHelper (**https://github.com/superboo07/Outlast-Level-Editor**)
+Picker is a mod for Outlast that includes many features. \
+Mod based on Outlast SpeedrunHelper (**https://github.com/superboo07/Outlast-Level-Editor**) \
 Outlast Modding Community: **https://discord.gg/rj55WY2JDP**
 
 ## Download Picker
