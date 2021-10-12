@@ -1,4 +1,7 @@
 # Picker
+
+<img src="PickerBG.png" width=100% object-fit=fill>
+
 ## What is that?
 
 Picker is a mod for Outlast that includes many features. \
