@@ -11,7 +11,7 @@ Outlast Modding Community: **https://discord.gg/rj55WY2JDP**
 
 ## Download Picker
 
-Download Release (Beta 1.1): **https://kutt.it/DYiyKI**
+Download Release (Beta 1.2): **https://kutt.it/DYiyKI**
 
 ## How to Install Picker?
 
