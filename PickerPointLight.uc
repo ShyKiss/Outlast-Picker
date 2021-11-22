@@ -1,62 +1,66 @@
-class PickerPointLight extends PointLightMovable
+Class PickerPointLight extends PointLightMovable
 	placeable;
 
-Function OnTurn(bool sd) {
-LightComponent.SetEnabled(sd);
+Function OnTurn(Bool Enable) {
+	LightComponent.SetEnabled(Enable);
 }
 
-Function SetBrightness(float f) {
-	LightComponent.SetLightProperties(f);
+Function SetBrightness(Float Brightness) {
+	LightComponent.SetLightProperties(Brightness);
     LightComponent.UpdateColorAndBrightness();
 }
 
-Function SetColor(byte ir, byte ig, byte ib, byte ia) {
-	local color c;
+Function SetColor(Byte Red, Byte Green, Byte Blue, Byte Alpha) {
+	local Color NewColor;
 	
-	c.R = ir;
-	c.G = ig;
-	c.B = ib;
-	c.A = ia;
+	NewColor.R = Red;
+	NewColor.G = Green;
+	NewColor.B = Blue;
+	NewColor.A = Alpha;
 
-	LightComponent.SetLightProperties(,c); 
+	LightComponent.SetLightProperties(,NewColor); 
     LightComponent.UpdateColorAndBrightness();
 }
 
-//default 1024.0
-Function SetRadius(float r) {
-	PointLightComponent(LightComponent).Radius = r;
+Function SetRadius(Float Radius=1024.0) {
+	PointLightComponent(LightComponent).Radius = Radius;
 }
 
-//default 2.0
-Function SetFallOffExponent(float e) {
-	PointLightComponent(LightComponent).FalloffExponent = e;
+Function SetFallOffExponent(Float Exp=2.0) {
+	PointLightComponent(LightComponent).FalloffExponent = Exp;
 }
 
-//default 2.0
-Function SetShadowFalloffExponent(float e) {
-	PointLightComponent(LightComponent).ShadowFalloffExponent = e;
+Function SetShadowFalloffExponent(Float Exp=2.0) {
+	PointLightComponent(LightComponent).ShadowFalloffExponent = Exp;
 }
 
-//default 1.1
-Function SetShadowRadiusMultiplier(float f) {
-	PointLightComponent(LightComponent).ShadowRadiusMultiplier = f;
+Function SetShadowRadiusMultiplier(Float Mul=1.1) {
+	PointLightComponent(LightComponent).ShadowRadiusMultiplier = Mul;
 }
 
-Function SetCastDynamicShadows(bool b) {
-	LightComponent.CastDynamicShadows = b;
+Function SetCastDynamicShadows(Bool Cast=true) {
+	LightComponent.CastDynamicShadows = Cast;
+}
+
+Event Tick(Float DT) {
+	Super.Tick(DT);
+	LightComponent.MaxDistFromCamForEnabled = 250000.0;
 }
 
 DefaultProperties
 {
-	BoundsScale=500
-    bNoDelete = false
+    bNoDelete=FALSE
 	CastShadows=FALSE
 	CastStaticShadows=FALSE
 	CastDynamicShadows=TRUE
 	bForceDynamicLight=TRUE
 	UseDirectLightMap=FALSE
 	bAllowPreShadow=TRUE
-	LightingChannels(BSP=True,Static=True,Dynamic=True)
-    bCollideActors = false
-	bCollideWorld = false
+	bPrecomputedLightingIsValid=false
+	LightAffectsClassification=ELightAffectsClassification.LAC_DYNAMIC_AND_STATIC_AFFECTING
+    LightShadowMode=ELightShadowMode.LightShadow_Normal
+	LightingChannels(bInitialized=true,BSP=true,Static=true,Dynamic=true,CompositeDynamic=true,Skybox=true,Unnamed_1=true,Unnamed_2=true,Unnamed_3=true,Unnamed_4=true,Unnamed_5=true,Unnamed_6=true,Cinematic_1=true,Cinematic_2=true,Cinematic_3=true,Cinematic_4=true,Cinematic_5=true,Cinematic_6=true,Cinematic_7=true,Cinematic_8=true,Cinematic_9=true,Cinematic_10=true,Gameplay_1=true,Gameplay_2=true,Gameplay_3=true,Gameplay_4=true,Crowd=true)
+    bCollideActors=FALSE
+	bCollideWorld=FALSE
+	bBlockActors=FALSE
 }

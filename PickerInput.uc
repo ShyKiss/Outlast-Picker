@@ -1,63 +1,67 @@
-class PickerInput extends OLPlayerInput
-    Config(Tool);
+Class PickerInput extends OLPlayerInput within PickerController
+    Config(Input);
 
 var PrivateWrite IntPoint MousePos;
 var array<Name> Keys;
-var vector2D Movement, Turning;
+var Vector2D Movement, Turning;
+var Bool bSpacePressed;
 
-Event PlayerInput(float DeltaTime) {
-
-    if (myHUD != None /*&& PickerHud(HUD).ToggleHUD==true*/) {
-
+Event PlayerInput(Float DeltaTime) {
+    if(myHUD != None && PickerHud(HUD).ToggleHUD) {
         MousePos.X = Clamp(MousePos.X + aMouseX, 0, myHUD.SizeX);
         MousePos.Y = Clamp(MousePos.Y - aMouseY, 0, myHUD.SizeY);
     }
-
     Super.PlayerInput(DeltaTime);
-    Movement=vect2d(aBaseY, aStrafe);
-    Turning=vect2d(aMouseX, aMouseY);
+    Movement=Vect2D(aBaseY, aStrafe);
+    Turning=Vect2D(aMouseX, aMouseY);
 }
 
-Function bool Key(Int ControllerId, Name Key, EInputEvent Event, Float AmountDepressed = 1.f, bool bGamepad=false) {
-
-    if (ContainsName(Keys, Key)) {
+Function Bool Key(Int ControllerId, Name Key, EInputEvent Event, Float AmountDepressed = 1.f, Bool bGamepad=false) {
+    if(ContainsName(Keys, Key)) {
         Keys.RemoveItem(Key);
         return false;
     }
-
-    Keys.additem(Key);
-    if (PickerHud(HUD).ToggleHUD==true) {
-        switch (key) {
-            Case 'LeftMouseButton':
+    Keys.AddItem(Key);
+    if(PickerHud(HUD).ToggleHUD) {
+        Switch(Key) {
+            case 'LeftMouseButton':
                 PickerHud(HUD).Click();
                 break;
-
+            case 'RightMouseButton':
+                PickerHud(HUD).Back();
+                break;
             case 'Enter':
                 PickerHud(HUD).Commit();
                 break;
-
-            case 'Backspace':
-                PickerHud(HUD).Command = Left(PickerHud(HUD).Command, len(PickerHud(HUD).Command)-1);
+            case 'Delete':
+                PickerHud(HUD).Command = "";
                 break;
-
+            case 'Backspace':
+                PickerHud(HUD).Command = Left(PickerHud(HUD).Command, Len(PickerHud(HUD).Command)-1);
+                break;
             case 'Tilde':
-                ConsoleCommand("TogglePickerMenu False");
+                ConsoleCommand("TogglePickerMenu false");
                 break;
         }
-
         return true;
     }
-
+    else {
+        Switch(Key) {
+            case 'Space':
+                bSpacePressed = true;
+            Default:
+                bSpacePressed = false;
+        }
+    }
     return false;
 }
 
-Function Bool Char(Int ControllerId, string Unicode) {
-    local int Character;
+Function Bool Char(Int ControllerId, String Unicode) {
+    local Int Character;
 
     Character = Asc(Left(Unicode, 1));
-
-    if (PickerHud(HUD).ToggleHUD==true) {
-        if (Character >= 0x20 && Character < 0x100 && Unicode!="`") {
+    if(PickerHud(HUD).ToggleHUD) {
+        if(Character >= 0x20 && Character < 0x100 && Unicode!="`") {
             PickerHud(HUD).Command = PickerHud(HUD).Command $ Unicode;
         }
         return true;
@@ -65,20 +69,18 @@ Function Bool Char(Int ControllerId, string Unicode) {
     return false;
 }
 
-Function Bool ContainsName(Array<Name> Array, Name find) {
-    Switch(Array.Find(find))
-    {
+Function Bool ContainsName(Array<Name> Array, Name Find) {
+    Switch(Array.Find(Find)) {
         case -1:
-            return False;
-        break;
-
-        default:
+            return false;
+            break;
+        Default:
             return true;
-        break;
+            break;
     }
 }
 
-Defaultproperties
+DefaultProperties
 {
     OnReceivedNativeInputKey=Key
     OnReceivedNativeInputChar=Char

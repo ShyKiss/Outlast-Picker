@@ -1,354 +1,837 @@
 Class PickerController extends OLPlayerController
-    Config(Tool);
+    Config(Picker);
 
-/*** MAIN VARS ***/
-
-var Float BBright, RRadius, QHHD, InsanePlusStamina;
-var Byte CR, CG, CB, CA;
+var Float InsanePlusStamina, fPlayerAnimRate, fEnemyAnimRate;
+var String CustomPM;
+var Vector vScalePlayer, vScaleEnemies;
 var PickerHud PickerHud;
 var PickerInput PickerInput;
-var PickerGame PickerGame;
-var OLEnemySurgeon OLEnemySurgeon;
-var OLEngine OLEngine;
-var OLGame Game;
-var OLCheatManager OLCheatManager;
 var SoundCue TeleportSound, ButtonSound, MenuMusic;
 var SkeletalMesh Current_SkeletalMesh;
-var array<MaterialInterface> Materials;
+var Transient OLCheatManager CheatManager;
+var Class<OLCheatManager> CheatClass;
+var Array<Materialinterface> Materials;
 var AudioComponent MenuMusicComponent;
-
-/*** STRING VARS ***/
-var String CustomPM;
-
-/*** BOOL VARS ***/
-var Bool SShadow, AIDebug, DoorState, FreecamState, LightState, ForceActive, ChrisState, NoclipState, BoolKillEnemy, ForceActiveDoorTypeLocker, 
-ForceActiveDoorTypeNormal, ForceActiveDoorStateLock, ForceActiveDoorStateUnlock, ForceKillEnemy, DoorTypeState, PlayerState, DelDoorState, 
-ForceDelDoor, ForceDisAI, EverytimeLightState, bBhop, bFlyMode, bResetTimer, bTimer, bDisAI, bAnimFree, bLMFree, bSMFree, bDark, GroomChrisState,
-SMRandomState, AllLoadedState, InsanePlusState, RandomizerState, LSMDamage, ResetJumpStam;
-
-/* FLOAT RANDOMIZER VARS */
-var Config Float SmallRandomTime, MediumRandomTime, LargeRandomTime;
-
-/* BOOL INSANEPLUS VARS */
-var Config Bool OneBatteryMode, FastEnemyMode, DisCamMode, SlowHeroMode,
-OneShotMode, BadBatteryMode, LimitedStaminaMode, NoDarkMode,
-SmartAIMode, TrainingMode, SkipDeathScreen;
+var Private String CurrentAddCPGame;
+var Bool AIDebug, bDebugFullyGhost, DoorLockState, DoorTypeState, DoorDelState, FreecamState, LightState, ChrisState, BoolKillEnemy, ForceKillEnemy,
+bDefaultPlayer, ForceDisAI, EverytimeLightState, bBhop, bAutoBunnyHop, bFlyMode, bResetTimer, bTimer, bDisAI, bAnimFree, bLMFree, bSMFree, bDark, GroomChrisState,
+SMRandomState, AllLoadedState, InsanePlusState, RandomizerState, LSMDamage, ResetJumpStam, RandomizerFR;
+var Float SmallRandomTime, MediumRandomTime, LargeRandomTime;
+var Config Bool DisCamMode, TrainingMode, AlwaysSaveCheckpoint, RandomizerChallengeMode;
 
 /************************************************FUNCTIONS************************************************/
 
-Exec Function AllCol() {
-    local Actor Actor;
+Exec Function KillerMake(String Ded) {
+    local StaticMeshActor Actor;
+    local OLDoor Door;
+    local SkeletalMeshActor Skel;
+    local OLEnemySoldier Soldier;
+    local OLEnemyGroom Groom;
+    local OLEnemyGenericPatient Martin;
+    local OLEnemyCannibal Cannibal;
 
-    Foreach AllActors(Class'Actor', Actor) {
-        Actor.SetCollision(true, true);
+    if(Ded ~= "Groom") {
+        Foreach WorldInfo.AllPawns(Class'OLEnemyGroom', Groom) {
+            Groom.Mesh.SetSkeletalMesh(SkeletalMesh'DickModels.Groom');
+        }
     }
+    else if(Ded ~= "Chris") {
+        Foreach WorldInfo.AllPawns(Class'OLEnemySoldier', Soldier) {
+            Soldier.Mesh.SetSkeletalMesh(SkeletalMesh'DickModels.Chris');
+        }
+    }
+    else if(Ded ~= "Glad") {
+        Foreach WorldInfo.AllPawns(Class'OLEnemyGenericPatient', Martin) {
+            Martin.Mesh.SetSkeletalMesh(SkeletalMesh'DickModels.GladValakas');
+        }
+    }
+    else if(Ded ~= "Cannibal") {
+        Foreach WorldInfo.AllPawns(Class'OLEnemyCannibal', Cannibal) {
+            Cannibal.Mesh.SetSkeletalMesh(SkeletalMesh'DickModels.Cannibal');
+        }
+    }
+    else if(Ded ~= "Chris2") {
+        Foreach WorldInfo.AllPawns(Class'OLEnemySoldier', Soldier) {
+            Soldier.Mesh.SetSkeletalMesh(SkeletalMesh'DickModels.Chris2');
+        }
+    }
+
 }
 
 Exec Function SpawnProp(StaticMesh Meshh, optional Int MatIndex, optional MaterialInstanceConstant Material) {
-    local Vector C;
-    local Rotator R;
-    local PickerProp D;
+    local Rotator Rot;
+    local PickerProp Prop;
 
-    R.Pitch = 0;
-    R.Yaw = Pawn.Rotation.Yaw - (90 * 182.044449);
-    R.Roll = 0;
-    C = Pawn.Location + (normal(Vector(Pawn.Rotation)) * 100);//vect(-7090.32,3245.93,550.04);
-    D = Spawn(Class'PickerProp',,,C,R);
-    D.SetHidden(False);
-    if(Material != None) {D.StaticMeshComponent.SetMaterial(MatIndex, Material);}
-    D.StaticMeshComponent.SetStaticMesh(Meshh);
-    D.SetCollision(true, true);
-}
-
-Exec Function ChangeProp(optional PickerProp Prop, optional StaticMesh Mesh, optional Int MatIndex, optional MaterialInstanceConstant Material) {
-    local PickerProp D;
-    local Bool bAllProps;
-
-    if(Prop == None) {bAllProps=true;}
-    Foreach AllActors(Class'PickerProp', D) {
-    if(bAllProps) {if(Material != None) {D.StaticMeshComponent.SetMaterial(MatIndex, Material);} if(Mesh != None) {D.StaticMeshComponent.SetStaticMesh(Mesh);}}
-    if(!bAllProps) {if(D == Prop) {if(Material != None) {D.StaticMeshComponent.SetMaterial(MatIndex, Material);} if(Mesh != None) {D.StaticMeshComponent.SetStaticMesh(Mesh);}}}
+    Rot.Pitch = 0;
+    Rot.Yaw = Pawn.Rotation.Yaw - (90 * 182.044449);
+    Rot.Roll = 0;
+    Prop = Spawn(Class'PickerProp',,, PickerHero(Pawn).Location + (Normal(Vector(PickerHero(Pawn).Rotation)) * 100), Rot);
+    Prop.SetHidden(false);
+    if(Material != None) {
+        Prop.StaticMeshComponent.SetMaterial(MatIndex, Material);
+    }
+    if(Meshh != None) {
+        Prop.StaticMeshComponent.SetStaticMesh(Meshh);
+        Prop.SetCollision(true, true);
+    }
+    else {
+        SendMsg("Mesh is missing!");
+        return;
     }
 }
 
-Exec Function DeleteProp(optional PickerProp Prop) {
+Exec Function ChangeProp(PickerProp Prop, optional StaticMesh Mesh, optional Int MatIndex, optional MaterialInstanceConstant Material) {
     local PickerProp D;
     local Bool bAllProps;
 
-    if(Prop==None) {bAllProps=true;}
+    if(Prop == None) {
+        bAllProps = true;
+    }
     Foreach AllActors(Class'PickerProp', D) {
-    if(bAllProps) {D.Destroy();}
-    if(!bAllProps) {if(D == Prop) {D.Destroy();}}
+        if(bAllProps) {
+            if(Material != None) {
+                D.StaticMeshComponent.SetMaterial(MatIndex, Material);
+            }
+            if(Mesh != None) {
+                D.StaticMeshComponent.SetStaticMesh(Mesh);
+            }
+        }
+        else if(D == Prop) {
+            if(Material != None) {
+                D.StaticMeshComponent.SetMaterial(MatIndex, Material);
+            }
+            if(Mesh != None) {
+                D.StaticMeshComponent.SetStaticMesh(Mesh);
+            }
+        }
+    }
+}
+
+Exec Function DeleteProp(PickerProp Prop) {
+    local PickerProp D;
+    local Bool bAllProps;
+
+    if(Prop == None) {
+        bAllProps = true;
+    }
+    Foreach AllActors(Class'PickerProp', D) {
+        if(bAllProps) {
+            D.Destroy();
+        }
+        else {
+            if(D == Prop) {
+                D.Destroy();
+            }
+        }
     }
 }
 
 /************************RANDOMIZER FUNCTIONS************************/
 
-Exec Function ModifyRandomizer(Byte Modify, Float Time) {
-    if(Modify==0) {SmallRandomTime=Time;}
-    if(Modify==1) {MediumRandomTime=Time;}
-    if(Modify==2) {LargeRandomTime=Time;}
+Exec Function ModifyRandomizer(Byte Modifier, String Value) {
+    if(RandomizerState) {
+        SendMsg("Unavailable in Randomizer!");
+        return;
+    }
+    Switch(Modifier) {
+        case 0:
+            RandomizerChallengeMode = Bool(Value);
+            break;
+        Default:
+            SendMsg("Wrong Modifier!");
+            break;
+    }
 }
 
-Exec Function ToggleRandomizer(optional bool d=false) {RandomizerState=!RandomizerState; if(RandomizerState) {ClientMessage("RANDOMIZER STARTED, ENJOY!"); Randomizer(d); return;} ClientMessage("RANDOMIZER DISABLED!"); Randomizer(false);}
-Function Randomizer(Bool FullyRandom) {
-
-if(!RandomizerState) {
-    WorldInfo.Game.ClearTimer('RandomizerSmallRandom', Self);
-    WorldInfo.Game.ClearTimer('RandomizerMediumRandom', Self);
-    WorldInfo.Game.ClearTimer('RandomizerLargeRandom', Self);
-    WorldInfo.Game.ClearTimer('RandDoorType', Self);
-    return;
-}
-    WorldInfo.Game.SetTimer(SmallRandomTime, true, 'RandomizerSmallRandom', Self);
-    WorldInfo.Game.SetTimer(MediumRandomTime, true, 'RandomizerMediumRandom', Self);
-    WorldInfo.Game.SetTimer(LargeRandomTime, true, 'RandomizerLargeRandom', Self);
-    WorldInfo.Game.SetTimer(0.5, true, 'RandDoorType', Self);
-    //Randomizer();
+Exec Function ToggleRandomizer() {
+    RandomizerState = !RandomizerState;
+    if(RandomizerState) {
+        SendMsg("RANDOMIZER STARTED, ENJOY!");
+    }
+    else {
+        SendMsg("RANDOMIZER DISABLED!");
+    }
+    Randomizer();
 }
 
-Function RandomizerSmallRandom() {
-    local Byte S1R, S2R, S3R, S4R, S5R, S6R, SR;
-
-    SR = RandRange(0, 5);
-    `log(string(RandBool()));
-
-    if(SR == 0) {if(RandBool()) {Inputs.bPressedToggleNightVision=!Inputs.bPressedToggleNightVision; return;} Inputs.bPressedToggleCamcorder=!Inputs.bPressedToggleCamcorder;}
-    if(SR == 1) {PickerInput.ResetInput(); ClientMessage("Reset");}
-    if(SR == 2) {ClientMessage(RandString(6));}
-    if(SR == 3) {ClientMessage(RandString(6));}
-    if(SR == 4) {ClientMessage(RandString(6));}
-    if(SR == 5) {ClientMessage(RandString(6));}
+Function Randomizer() {
+    if(!RandomizerState) {
+        WorldInfo.Game.ClearTimer('RandomizerMediumRandom', Self);
+        WorldInfo.Game.ClearTimer('RandomizerLargeRandom', Self);
+        WorldInfo.Game.ClearTimer('RandomizerQuickEvents', Self);
+    }
+    else {
+        WorldInfo.Game.SetTimer(15.0, true, 'RandomizerMediumRandom', Self);
+        WorldInfo.Game.SetTimer(30.0, true, 'RandomizerLargeRandom', Self);
+        WorldInfo.Game.SetTimer(0.5, true, 'RandomizerQuickEvents', Self);
+    }
 }
+
+/*Function RandomizerSmallRandom() {
+    Switch(Rand(5)) {
+        case 0:
+            if(RandBool() && bHasCamcorder || PickerHero(Pawn).bCamcorderDesired) {
+                ToggleNightVision();
+            }
+            else if(RandBool() && bHasCamcorder) {
+                ToggleCamcorder();
+            }
+            else {
+                if(RandBool()) {
+                    bHasCamcorder = true;
+                    ToggleCamcorder();
+                }
+                if(RandBool()) {
+                    bHasCamcorder = false;
+                }
+            }
+            break;
+        case 1:
+            RandPatientModel();
+            break;
+        case 2:
+            if(!RandomizerFR) {
+                RandPlayerSpeed(RandBool());
+            }
+            break;
+        case 3:
+            PickerGame(WorldInfo.Game).DifficultyMode = EDifficultyMode(Rand(3));
+            break;
+        case 4:
+            CantHideFromUs(RandBool());
+            break;
+        case 5:
+            break;
+        
+    }
+}*/
 
 Function RandomizerMediumRandom() {
-    local Byte M1R, M2R, M3R, M4R, M5R, M6R, MR;
-
-    MR = RandRange(0, 5);
-
-    if(MR == 0) {RandSpawnEnemyCount(1, 3);}
-    if(MR == 1) {ClientMessage("Medium 1");}
-    if(MR == 2) {ClientMessage("Medium 2");}
-    if(MR == 3) {ClientMessage("Medium 3");}
-    if(MR == 4) {ClientMessage("Medium 4");}
-    if(MR == 5) {ClientMessage("Medium 5");}
+    Switch(Rand(11)) {
+        case 0:
+            DS(Rand(10));
+            SendMsg("You're hurt!");
+            break;
+        case 1:
+            RandPlayerState();
+            SendMsg("I feel self... different");
+            break;
+        case 2:
+            if(RandBool()) {
+                LockDoor();
+                SendMsg("Doors are Locked!");
+            }
+            else if(RandBool()) {
+                UnlockDoor();
+                SendMsg("Doors are Unlocked!");
+            }
+            else {
+                DeleteDoors(RandBool());
+                SendMsg("Doors are Deleted! (or reseted...)");
+            }
+            break;
+        case 3:
+            RandSpawnEnemyCount(1, 5);
+            SendMsg("Oh no!");
+            break;
+        case 4:
+            ConsoleCommand("PressedJump");
+            SendMsg("Just Jump?");
+            break;
+        case 5:
+            RandUberEffect();
+            SendMsg("Blind Mode!");
+            break;
+        case 6:
+            if(RandBool() && bHasCamcorder || PickerHero(Pawn).bCamcorderDesired) {
+                ToggleNightVision();
+            }
+            else if(RandBool() && bHasCamcorder) {
+                ToggleCamcorder();
+            }
+            else {
+                if(RandBool()) {
+                    bHasCamcorder = true;
+                    ToggleCamcorder();
+                }
+                if(RandBool()) {
+                    bHasCamcorder = false;
+                }
+            }
+            SendMsg("Where my camera?!");
+            break;
+        case 7:
+            if(RandBool()) {
+                MadeLight();
+            }
+            else {
+                MadeSpot();
+            }
+            SendMsg("It's getting brighter here...");
+            break;
+        case 8:
+            TeleportEnemyToPlayer();
+            SendMsg("I didn't want to THIS rain!");
+            break;
+        case 9:
+            PickerGame(WorldInfo.Game).DifficultyMode = EDifficultyMode(Rand(3));
+            SendMsg("Difficulty is... new!");
+            break;
+        case 10:
+            CantHideFromUs(RandBool());
+            SendMsg("You can't hide! (or hide)");
+            break;
+        case 11:
+            Rand100PlayerPos();
+            SendMsg("Poof!");
+            break;
+        case 12:
+            RandDoors();
+            SendMsg("The doors were different... I think");
+            break;
+        
+    }
 }
 
 Function RandomizerLargeRandom() {
-    local Byte L1R, L2R, L3R, L4R, L5R, L6R, LR;
-    local Bool RSR;
-
-    LR = RandRange(0, 5);
-
-    if(LR == 0) {if(RandRange(0, 100) >= 99) {CP("Admin_Gates"); return;} else {Reload();}}
-    if(LR == 1) {GameSpeed(RandRange(0.5, 3));}
-    if(LR == 2) {ClientMessage("Large 2");}
-    if(LR == 3) {ClientMessage("Large 3");}
-    if(LR == 4) {ClientMessage("Large 4");}
-    if(LR == 5) {ClientMessage("Large 5");}
+    Switch(Rand(5)) {
+        case 0:
+            if(Rand(100) >= 99) {
+                if(PickerGame(WorldInfo.Game).IsPlayingDLC()) {
+                    CP("Hospital_Free");
+                }
+                else {
+                    CP("Admin_Gates");
+                }
+            }
+            else {
+                if(!RandomizerChallengeMode) {
+                    Reload();
+                }
+            }
+            break;
+        case 1:
+            SendMsg("No Reload :)");
+            DS(1);
+            break;
+        case 2:
+            SendMsg("No Reload :)");
+            DS(2);
+            break;
+        case 3:
+            SendMsg("No Reload :)");
+            DS(3);
+            break;
+        case 4:
+            SendMsg("No Reload :)");
+            DS(4);
+            break;
+        case 5:
+            SendMsg("No Reload :)");
+            DS(5);
+            break;
+    }
 }
 
-Exec Function HideObj(bool Hide) {PickerHud(HUD).ObjectiveScreen.SetVisible(Hide);}
-Exec Function ShowObj(string ObjectiveText) {if(PickerHud(HUD).ObjectiveScreen == none) {PickerHud(HUD).ObjectiveScreen = new (self) class'OLUIMessage';} if(PickerHud(HUD).ObjectiveScreen != none) {PickerHud(HUD).ObjectiveScreen.Start(false); PickerHud(HUD).ObjectiveScreen.SetMessage(1, "New objective:" @ "" $ (Localize("Objectives", "" $ string(CurrentObjective), "OLGame")));}}
+Function RandomizerQuickEvents() {
+    PlayerAnimRate(RandFloat(2.5));
+    RandLightColor();
+    RandPatientModel();
+    RandPlayerSpeed();
+    RandChangeFOV();
+}
 
 /************************INSANEPLUS FUNCTIONS************************/
 
-Exec Function ModifyInsanePlus(Byte Modify) {
-    if(Modify==0) {OneBatteryMode=!OneBatteryMode;}
-    if(Modify==1) {FastEnemyMode=!FastEnemyMode;}
-    if(Modify==2) {DisCamMode=!DisCamMode;}
-    if(Modify==3) {SlowHeroMode=!SlowHeroMode;}
-    if(Modify==4) {OneShotMode=!OneShotMode;}
-    if(Modify==5) {BadBatteryMode=!BadBatteryMode;}
-    if(Modify==6) {LimitedStaminaMode=!LimitedStaminaMode;}
-    if(Modify==7) {NoDarkMode=!NoDarkMode;}
-    if(Modify==8) {SmartAIMode=!SmartAIMode;}
-    if(Modify==9) {TrainingMode=!TrainingMode;}
-    if(Modify==10) {SkipDeathScreen=!SkipDeathScreen;}
+Exec Function ModifyInsanePlus(Byte Modifier) {
+    Switch(Modifier) {
+        case 0:
+            DisCamMode=!DisCamMode;
+            break;
+        case 1:
+            TrainingMode=!TrainingMode;
+            break;
+        Default:
+            SendMsg("Wrong Modifier!");
+            return;
+            break;
+    }
 }
 
-Exec Function ToggleInsanePlus(optional String CPD) {InsanePlusState=!InsanePlusState; InsanePlus(CPD);}
+Exec Function ToggleInsanePlus(optional String CPD) {
+    InsanePlusState = !InsanePlusState;
+    InsanePlus(CPD);
+}
 Function InsanePlus(optional String CPD) {
     local PickerGame CGame;
+    local PickerHero Hero;
+
     CGame = PickerGame(WorldInfo.Game);
+	Hero = PickerHero(Pawn);
     if(!InsanePlusState) {
-    ConsoleCommand("Set OLAnimBlendBySpeed MaxSpeed 400");
-    PickerHero(Pawn).bCameraCracked=false;
-    PickerHero(Pawn).DeathScreenDuration=7.50;
-    PickerHero(Pawn).NormalWalkSpeed=200;
-    PickerHero(Pawn).NormalRunSpeed=450;
-    PickerHero(Pawn).CrouchedSpeed=75;
-    PickerHero(Pawn).BatteryDuration=150;
-    PickerHud(HUD).SetMenu(Normal); CGame.DifficultyMode=EDM_Normal;
-    OneBatteryMode=Default.OneBatteryMode; FastEnemyMode=Default.FastEnemyMode; DisCamMode=Default.DisCamMode;
-    SlowHeroMode=Default.SlowHeroMode; OneShotMode=Default.OneShotMode; BadBatteryMode=Default.BadBatteryMode;
-    LimitedStaminaMode=Default.LimitedStaminaMode; NoDarkMode=Default.NoDarkMode; SmartAIMode=Default.SmartAIMode;
-    WorldInfo.Game.ClearTimer('InsanePlusOneBattery', Self);
-    WorldInfo.Game.ClearTimer('InsanePlusDisCam', Self);
-    WorldInfo.Game.ClearTimer('InsanePlusSlowHero', Self);
-    WorldInfo.Game.ClearTimer('InsanePlusFastEnemy', Self);
-    WorldInfo.Game.ClearTimer('InsanePlusNoDark', Self);
-    WorldInfo.Game.ClearTimer('InsanePlusOneShot', Self);
-    WorldInfo.Game.ClearTimer('InsanePlusLimitedStamina', Self);
-    WorldInfo.Game.ClearTimer('InsanePlusBadBattery', Self);
-    WorldInfo.Game.ClearTimer('InsanePlusSmartAI', Self);
-    WorldInfo.Game.ClearTimer('InsanePlusMainFunc', Self);
-    ClientMessage("INSANE PLUS DISABLED!"); return;
+        ConsoleCommand("Set OLAnimBlendBySpeed MaxSpeed 400");
+        Hero.bCameraCracked = false;
+        Hero.DeathScreenDuration = 7.50;
+        Hero.NormalWalkSpeed = 200;
+        Hero.NormalRunSpeed = 450;
+        Hero.CrouchedSpeed = 75;
+        Hero.BatteryDuration = 150;
+        PickerHud(HUD).SetMenu(Normal);
+        CGame.DifficultyMode = EDM_Normal;
+        DisCamMode = Default.DisCamMode;
+        TrainingMode = Default.TrainingMode;
+        InsanePlusStamina = 100;
+        ResetJumpStam = false;
+        LSMDamage = true;
+        Hero.ForwardSpeedForJumpWalking = Hero.Default.ForwardSpeedForJumpWalking;
+        Hero.ForwardSpeedForJumpRunning = Hero.Default.ForwardSpeedForJumpRunning;
+        Hero.JumpClearanceWalking = Hero.Default.JumpClearanceWalking;
+        Hero.JumpClearanceRunning = Hero.Default.JumpClearanceRunning;
+        Hero.NormalWalkSpeed = Hero.Default.NormalWalkSpeed;
+        Hero.NormalRunSpeed = Hero.Default.NormalRunSpeed;
+        WorldInfo.Game.ClearTimer('InsanePlusOneBattery', Self);
+        WorldInfo.Game.ClearTimer('InsanePlusDisCam', Self);
+        WorldInfo.Game.ClearTimer('InsanePlusSlowHero', Self);
+        WorldInfo.Game.ClearTimer('InsanePlusFastEnemy', Self);
+        WorldInfo.Game.ClearTimer('InsanePlusNoDark', Self);
+        WorldInfo.Game.ClearTimer('InsanePlusOneShot', Self);
+        WorldInfo.Game.ClearTimer('InsanePlusLimitedStamina', Self);
+        WorldInfo.Game.ClearTimer('InsanePlusBadBattery', Self);
+        WorldInfo.Game.ClearTimer('InsanePlusSmartAI', Self);
+        WorldInfo.Game.ClearTimer('InsanePlusMainFunc', Self);
+        WorldInfo.Game.ClearTimer('InsanePlusLSAddFunc', Self);
+        WorldInfo.Game.ClearTimer('InsanePlusLSAddFunc2', Self);
+        SendMsg("INSANE PLUS DISABLED!");}
+    else {
+        LSMDamage = true;
+        ResetJumpStam = false;
+        PickerHud(HUD).SetMenu(DisInsanePlus);
+        WorldInfo.Game.SetTimer(0.0001, true, 'InsanePlusMainFunc', Self);
+        DefaultNumBatteries = 0;
+        NumBatteries = 0;
+        NightmareMaxNumBatteries = 1;
+        if(DisCamMode) {
+            WorldInfo.Game.SetTimer(0.0001, true, 'InsanePlusDisCam', Self);
+        }
+        ConsoleCommand("Set OLAnimBlendBySpeed MaxSpeed 360");
+        WorldInfo.Game.SetTimer(0.0001, true, 'InsanePlusOneBattery', Self);
+        WorldInfo.Game.SetTimer(0.001, true, 'InsanePlusSlowHero', Self);
+        WorldInfo.Game.SetTimer(0.001, true, 'InsanePlusFastEnemy', Self);
+        WorldInfo.Game.SetTimer(0.001, true, 'InsanePlusNoDark', Self);
+        WorldInfo.Game.SetTimer(0.001, true, 'InsanePlusOneShot', Self);
+        WorldInfo.Game.SetTimer(0.001, true, 'InsanePlusBadBattery', Self);
+        WorldInfo.Game.SetTimer(0.001, true, 'InsanePlusSmartAI', Self);
+        WorldInfo.Game.SetTimer(0.01, true, 'InsanePlusLimitedStamina', Self);
+        InsanePlusStamina=100;
+        if(TrainingMode && CPD != "") {
+            CGame.DifficultyMode = EDM_Nightmare;
+            if(CGame.IsPlayingDLC()) {
+                CP(CPD, false);
+            }
+            else {
+                CP(CPD, false);
+            }
+        }
+        else {
+            CGame.DifficultyMode = EDM_Insane;
+            if(CGame.IsPlayingDLC()) {
+                CP("Hospital_Free", false);
+            }
+            else {
+                CP("Admin_Gates", false);
+            }
+        }
+        SendMsg("INSANE PLUS STARTED, ENJOY!");
     }
-
-    PickerHud(HUD).SetMenu(DisInsanePlus);
-    if(!TrainingMode) {CGame.DifficultyMode=EDM_Insane;} if(TrainingMode) {CGame.DifficultyMode=EDM_Nightmare;}
-    LSMDamage=true;
-    WorldInfo.Game.SetTimer(0.001, true, 'InsanePlusMainFunc', Self);
-    if(!SlowHeroMode) {InsanePlusSlowHero(true);}
-    if(OneBatteryMode) {DefaultNumBatteries=0; NumBatteries=0; NightmareMaxNumBatteries=1; WorldInfo.Game.SetTimer(0.001, true, 'InsanePlusOneBattery', Self);}
-    if(DisCamMode) {WorldInfo.Game.SetTimer(0.001, true, 'InsanePlusDisCam', Self);}
-    if(SlowHeroMode) {ConsoleCommand("Set OLAnimBlendBySpeed MaxSpeed 360"); WorldInfo.Game.SetTimer(0.001, true, 'InsanePlusSlowHero', Self);}
-    if(FastEnemyMode) {WorldInfo.Game.SetTimer(0.001, true, 'InsanePlusFastEnemy', Self);}
-    if(NoDarkMode) {WorldInfo.Game.SetTimer(0.001, true, 'InsanePlusNoDark', Self);}
-    if(OneShotMode) {WorldInfo.Game.SetTimer(0.001, true, 'InsanePlusOneShot', Self);}
-    if(BadBatteryMode) {WorldInfo.Game.SetTimer(0.001, true, 'InsanePlusBadBattery', Self);}
-    if(SmartAIMode) {WorldInfo.Game.SetTimer(0.001, true, 'InsanePlusSmartAI', Self);}
-    if(LimitedStaminaMode) {InsanePlusStamina=100; WorldInfo.Game.SetTimer(0.01, true, 'InsanePlusLimitedStamina', Self);}
-    if(!TrainingMode) {if(CGame.IsPlayingDLC()) {CP("Hospital_Free", false);} if(!CGame.IsPlayingDLC()) {CP("Admin_Gates", false);}}
-    if(TrainingMode) {if(CGame.IsPlayingDLC()) {CP(CPD, false);} if(!CGame.IsPlayingDLC()) {CP(CPD, false);}}
-    ClientMessage("INSANE PLUS STARTED, ENJOY!");
-
-} // if(InsanePlusState) {ToggleInsanePlus(); ConsoleCommand("open dlc_mainmenugame");}
+}
 
 Function InsanePlusMainFunc() {
     local PickerGame CGame;
+
     CGame = PickerGame(WorldInfo.Game);
-    PickerHero(Pawn).BatteryDuration=90;
-    if(SkipDeathScreen) {PickerHero(Pawn).DeathScreenDuration=0.75;}
-    PickerHero(Pawn).bCameraCracked=true;
-    if(CGame.IsPlayingDLC()) {PickerHero(Pawn).ShatteredCameraGlassCheckpoint='Hospital_Free'; FirstSoldierFindableCheckpoint='Hospital_Free';}
-    if(!CGame.IsPlayingDLC()) {PickerHero(Pawn).ShatteredCameraGlassCheckpoint='Admin_Gates'; FirstSoldierFindableCheckpoint='Admin_Basement'; FirstSurgeonFindableCheckpoint='Male_TortureDone';}
+    PickerHero(Pawn).BatteryDuration = 90;
+    PickerHero(Pawn).bCameraCracked = true;
+    if(TrainingMode) {
+        PickerHero(Pawn).DeathScreenDuration = 0;
+    }
+    if(CGame.IsPlayingDLC()) {
+        PickerHero(Pawn).ShatteredCameraGlassCheckpoint = 'Hospital_Free';
+        FirstSoldierFindableCheckpoint = 'Hospital_Free';
+    }
+    else {
+        PickerHero(Pawn).ShatteredCameraGlassCheckpoint = 'Admin_Gates';
+        FirstSoldierFindableCheckpoint = 'Admin_Basement';
+        FirstSurgeonFindableCheckpoint = 'Male_TortureDone';
+    }
 }
+
 Function InsanePlusSmartAI() {
     local OLDoor Door;
-    local Name Admin_Basement, Male_TortureDone;
-
-    FirstSoldierFindableCheckpoint=Admin_Basement;
-    FirstSurgeonFindableCheckpoint=Male_TortureDone;
+    local PickerGame CGame;
+    local String Checkpoint;
+    local OLEnemyGenericPatient Cannibal;
+    local Bool MapWithCannibal;
+    
+    CGame = PickerGame(WorldInfo.Game);
+    Checkpoint = String(CGame.CurrentCheckpointName);
+    FirstSoldierFindableCheckpoint = 'Admin_Basement';
+    FirstSurgeonFindableCheckpoint = 'Male_TortureDone';
+    Foreach WorldInfo.AllPawns(Class'OLEnemyGenericPatient', Cannibal) {
+        Switch(Cannibal.Class) {
+            case Class'OLEnemyCannibal':
+                MapWithCannibal = true;
+                break;
+            Default:
+                MapWithCannibal = false;
+                break;
+        }
+    }
     Foreach AllActors(Class'OLDoor', Door) {
-        Door.bDontBreak=true;
-        Door.bAICanUseDoor=true;
-        Door.bAlwaysBreak=false;
+        if(Checkpoint ~= "Hospital_1stFloor_GotKey") {
+            Door.bDontBreak = false;
+            Door.bAICanUseDoor = true;
+            Door.bAlwaysBreak = true;
+        }
+        else if(Checkpoint ~= "Hospital_1stFloor_NeedHandcuff" && !MapWithCannibal) {
+            Door.bDontBreak = false;
+            Door.bAICanUseDoor = true;
+            Door.bAlwaysBreak = true;
+        }
+        else {
+            Door.bDontBreak = true;
+            Door.bAICanUseDoor = true;
+            Door.bAlwaysBreak = false;
+        }
+    }
 }
-}
+
 Function InsanePlusBadBattery() {
     local Float Energy;
-    if(PickerHero(Pawn).CurrentBatterySetEnergy > 0.9) {
-        Energy = RandRange(0.05, 0.85);
-        PickerHero(Pawn).CurrentBatterySetEnergy=Energy;
-}
+
+    if(PickerHero(Pawn).CurrentBatterySetEnergy > 0.95) {
+        Energy = RandRange(0.05, 0.94);
+        PickerHero(Pawn).CurrentBatterySetEnergy = Energy;
+    }
 }
 
 Function InsanePlusLimitedStamina() {
     local Bool IsMoving;
     local PickerInput Input;
-    Input = PickerInput(PlayerInput);
-    IsMoving=Input.Movement.X!=0 || Input.Movement.Y!=0;
-    if(PickerHero(Pawn).LocomotionMode==LM_Walk || PickerHero(Pawn).LocomotionMode==LM_LookBack || PickerHero(Pawn).LocomotionMode==LM_Fall) {
-    if(PickerHero(Pawn).IsRunning()) {if(InsanePlusStamina > 0) {InsanePlusStamina -= 0.01;}}
-    if(IsMoving && Input.Outer.bDuck==0) { if(IsMoving && !PickerHero(Pawn).bWasUnder) {if(InsanePlusStamina > 0) {InsanePlusStamina -= 0.045;}}}}
-    if(PickerHero(Pawn).bJumping) {if(InsanePlusStamina > 0 && !ResetJumpStam) {
-        ResetJumpStam=true; InsanePlusStamina -= 25;}}
-    if(PickerHero(Pawn).LocomotionMode==LM_Walk && !PickerHero(Pawn).bJumping && ResetJumpStam) {WorldInfo.Game.SetTimer(0.1, false, 'InsanePlusLSAddFunc2', Self);}
-    if(PickerHero(Pawn).LocomotionMode!=LM_Walk && PickerHero(Pawn).LocomotionMode!=LM_LookBack && PickerHero(Pawn).LocomotionMode!=LM_Fall) {PickerHero(Pawn).bJumping=false;}
-    if(InsanePlusStamina < 0) {InsanePlusStamina=0;}
-    if(InsanePlusStamina < 100 && !PickerHero(Pawn).IsRunning() && !PickerHero(Pawn).bJumping) {InsanePlusStamina += 0.08;}
 
-    if(InsanePlusStamina > 15) {
-    WorldInfo.Game.ClearTimer('InsanePlusLSAddFunc', Self);
-    LSMDamage=true;
-    PickerHero(Pawn).ForwardSpeedForJumpWalking=450;
-    PickerHero(Pawn).ForwardSpeedForJumpRunning=650;
-    PickerHero(Pawn).JumpClearanceWalking=200;
-    PickerHero(Pawn).JumpClearanceRunning=300;
-    if(SlowHeroMode) {PickerHero(Pawn).NormalRunSpeed=370; return;}
-    else {PickerHero(Pawn).NormalRunSpeed=450; return;}
+    Input = PickerInput(PlayerInput);
+    IsMoving = Input.Movement.X != 0 || Input.Movement.Y != 0;
+    if(PickerHero(Pawn).LocomotionMode == LM_Walk || PickerHero(Pawn).LocomotionMode == LM_LookBack || PickerHero(Pawn).LocomotionMode == LM_Fall) {
+        if(PickerHero(Pawn).IsRunning() && InsanePlusStamina > 0) {
+            InsanePlusStamina -= 0.01;
+        }
+        if(IsMoving && Input.Outer.bDuck == 0 && !PickerHero(Pawn).bWasUnder && InsanePlusStamina > 0) {
+            InsanePlusStamina -= 0.045;
+        }
+    }
+    if(PickerHero(Pawn).bJumping) {
+        if(InsanePlusStamina > 0 && !ResetJumpStam) {
+            ResetJumpStam = true;
+            InsanePlusStamina -= 25;
+        }
+    }
+    if(PickerHero(Pawn).LocomotionMode == LM_Walk && !PickerHero(Pawn).bJumping && ResetJumpStam) {
+        WorldInfo.Game.SetTimer(0.1, false, 'InsanePlusLSAddFunc2', Self);
+    }
+    if(PickerHero(Pawn).LocomotionMode!=LM_Walk && PickerHero(Pawn).LocomotionMode!=LM_LookBack && PickerHero(Pawn).LocomotionMode!=LM_Fall) {
+        PickerHero(Pawn).bJumping = false;
+    }
+    if(InsanePlusStamina < 0) {
+        InsanePlusStamina=0;
+    }
+    if(InsanePlusStamina < 100 && !PickerHero(Pawn).IsRunning() && !PickerHero(Pawn).bJumping) {
+        InsanePlusStamina += 0.08;
+    }
+    if(InsanePlusStamina >= 15) {
+        WorldInfo.Game.ClearTimer('InsanePlusLSAddFunc', Self);
+        LSMDamage = true;
+        PickerHero(Pawn).ForwardSpeedForJumpWalking = 450;
+        PickerHero(Pawn).ForwardSpeedForJumpRunning = 650;
+        PickerHero(Pawn).JumpClearanceWalking = 200;
+        PickerHero(Pawn).JumpClearanceRunning = 300;
+        PickerHero(Pawn).NormalRunSpeed = 370;
     }
     if(InsanePlusStamina < 15) {
-    PickerHero(Pawn).ForwardSpeedForJumpWalking=0;
-    PickerHero(Pawn).ForwardSpeedForJumpRunning=0;
-    PickerHero(Pawn).JumpClearanceWalking=0;
-    PickerHero(Pawn).JumpClearanceRunning=0;
-    if(InsanePlusStamina < 5) {
-    if(LSMDamage) {WorldInfo.Game.SetTimer(3, false, 'InsanePlusLSAddFunc', Self); LSMDamage=false;}
-    if(SlowHeroMode) {PickerHero(Pawn).NormalRunSpeed=135; return;} else {PickerHero(Pawn).NormalRunSpeed=200; return;}}
-    if(SlowHeroMode) {PickerHero(Pawn).NormalRunSpeed=250; return;} else {PickerHero(Pawn).NormalRunSpeed=300; return;}}
+        PickerHero(Pawn).ForwardSpeedForJumpWalking = 0;
+        PickerHero(Pawn).ForwardSpeedForJumpRunning = 0;
+        PickerHero(Pawn).JumpClearanceWalking = 0;
+        PickerHero(Pawn).JumpClearanceRunning = 0;
+        if(InsanePlusStamina < 5) {
+            if(LSMDamage) {
+                WorldInfo.Game.SetTimer(3, false, 'InsanePlusLSAddFunc', Self);
+                LSMDamage = false;
+            }
+            PickerHero(Pawn).NormalRunSpeed=135;
+        }
+        PickerHero(Pawn).NormalRunSpeed=250;
+    }
 
 }
-Function InsanePlusLSAddFunc2() {ResetJumpStam=false;}
-Function InsanePlusLSAddFunc() {DS(20); LSMDamage=true;}
-Function InsanePlusOneBattery() {NightmareMaxNumBatteries=1;}
-Function InsanePlusDisCam() {bHasCamcorder=false;}
-Function InsanePlusSlowHero(optional bool d=false) {
+
+Function InsanePlusLSAddFunc2() {
+    ResetJumpStam = false;
+}
+
+Function InsanePlusLSAddFunc() {
+    DS(25);
+    LSMDamage = true;
+}
+Function InsanePlusOneBattery() {
+    NightmareMaxNumBatteries = 1;
+}
+
+Function InsanePlusDisCam() {
+    bHasCamcorder = false;
+}
+
+Function InsanePlusSlowHero(Bool d=false) {
     local PickerGame CGame;
-    local String Checkpoint;
-    local Name Lab_BigTowerStairs;
+    local Name Checkpoint;
 
     CGame = PickerGame(WorldInfo.Game);
-    Checkpoint = "" $ CGame.CurrentCheckpointName;
+    Checkpoint = CGame.CurrentCheckpointName;
     if(d && InsanePlusState) {
-        if(PickerHero(Pawn).LocomotionMode==LM_Walk || PickerHero(Pawn).LocomotionMode==LM_LookBack) {PRate(1.11); return;}
-        PRate(1);
-        InsanePlusSlowHero(true); return;
-} else {
-        PickerHero(Pawn).NormalWalkSpeed=135;
-        PickerHero(Pawn).NormalRunSpeed=370;
-        PickerHero(Pawn).CrouchedSpeed=55;
-        if(PickerHero(Pawn).LocomotionMode==LM_Walk || PickerHero(Pawn).LocomotionMode==LM_LookBack) {PRate(1.11); return;}
-        PRate(1);
+        if(PickerHero(Pawn).LocomotionMode == LM_Walk || PickerHero(Pawn).LocomotionMode == LM_LookBack) {
+            PlayerAnimRate(1.11);
+            return;
         }
+        else {
+            PlayerAnimRate(1);
+        }
+        InsanePlusSlowHero(true);
+        return;
+    }
+    else {
+        if(Checkpoint == 'Building2_Garden' || Checkpoint == 'Building2_Floor1_1' || Checkpoint == 'Building2_Floor1_2' || Checkpoint == 'Building2_Floor1_3' || Checkpoint == 'Building2_Floor1_4' || Checkpoint == 'Building2_Floor1_5' || Checkpoint == 'Building2_Floor1_5b' || Checkpoint == 'Building2_Floor1_6') {
+            PickerHero(Pawn).CrouchedSpeed = 35;
+            PickerHero(Pawn).HobblingWalkSpeed = 50;
+            PickerHero(Pawn).HobblingRunSpeed = 110;
+        }
+        else {
+            PickerHero(Pawn).NormalWalkSpeed = 135;
+            PickerHero(Pawn).NormalRunSpeed = 370;
+            PickerHero(Pawn).CrouchedSpeed = 55;
+            PickerHero(Pawn).HobblingWalkSpeed = 90;
+            PickerHero(Pawn).HobblingRunSpeed = 200;
+        }
+        if(PickerHero(Pawn).LocomotionMode == LM_Walk || PickerHero(Pawn).LocomotionMode == LM_LookBack) {
+            PlayerAnimRate(1.11);
+        }
+        else {
+            PlayerAnimRate(1);
+        }
+    }
 }
 
-Function InsanePlusNoDark() {local OLDarknessVolume Darks; Foreach AllActors(Class'OLDarknessVolume', Darks) {Darks.bDark=false;}}
+Function InsanePlusNoDark() {
+    local OLDarknessVolume Darks;
+
+    Foreach AllActors(Class'OLDarknessVolume', Darks) {
+        Darks.bDark = false;
+    }
+}
+
 Function InsanePlusFastEnemy() {
     local OLBot Bot;
     local PickerGame CGame;
     local String Checkpoint;
     
     CGame = PickerGame(WorldInfo.Game);
-    Checkpoint = "" $ CGame.CurrentCheckpointName;
-    if(Checkpoint == "Sewer_Citern2" && SlowHeroMode) {
-    Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
-        Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=200;
-        Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=245;
-        Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=205;
-    }return;}
-    else if(Checkpoint == "Male_Chase" && SlowHeroMode) {
-    Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
-        Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=200;
-        Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=245;
-        Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=450;
-    }return;}
-    else if(Checkpoint == "Male_ChasePause" && SlowHeroMode) {
-    Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+    Checkpoint = String(CGame.CurrentCheckpointName);
+    if(Checkpoint ~= "Sewer_Citern2") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=200;
+            Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=245;
+            Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=205;
+        }
+        return;
+    }
+    else if(Checkpoint ~= "Sewer_FlushWater" || Checkpoint ~= "Sewer_FlushedWater") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=250;
+            Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=285;
+            Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=705;
+        }
+    }
+    else if(Checkpoint ~= "Admin_Basement" || Checkpoint ~= "Admin_Electricity") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=300;
+            Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=345;
+            Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=705;
+        }
+    }
+    else if(Checkpoint ~= "Prison_Start" || Checkpoint ~= "Prison_IsolationCells01_Mid" || Checkpoint ~= "Prison_SecurityRoom1" || Checkpoint ~= "Prison_Showers_2ndFloor"  || Checkpoint ~= "Prison_IsolationCells02_PostSoldier") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=300;
+            Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=345;
+            Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=705;
+            Bot.EnemyPawn.Modifiers.bShouldAttack=true;
+            Bot.EnemyPawn.BehaviorTree=OLBTBehaviorTree'02_AI_Behaviors.Soldier_BT';
+        }
+    }
+    else if(Checkpoint ~= "Prison_IsolationCells02_Soldier") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=300;
+            Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=345;
+            Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=555;
+        }
+    }
+    else if(Checkpoint ~= "Male_Chase") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=200;
+            Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=245;
+            Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=450;
+        }
+        return;
+    }
+    else if(Checkpoint ~= "Male_ChasePause") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
             Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=200;
             Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=245;
             Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=375;
-    }return;}
-    else if(Checkpoint == "Lab_BigTowerStairs" && SlowHeroMode) {
-    Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
-        Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=200;
-        Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=245;
-        Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=425;
-    }return;}
-    else if(Checkpoint == "Lab_BigRoomDone" && SlowHeroMode) {
-    Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
-        Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=200;
-        Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=245;
-        Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=360;
-    }return;}
-    else if(Checkpoint == "Lab_BigTower" && SlowHeroMode) {
-    Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
-        Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=200;
-        Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=245;
-        Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=360;
-    }return;}
+        }
+        return;
+    }
+    else if(Checkpoint ~= "Male_TortureDone") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=300;
+            Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=345;
+            Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=1975;
+        }
+        return;
+    }
+    else if(Checkpoint ~= "Male_surgeon") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=200;
+            Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=245;
+            Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=975;
+        }
+        return;
+    }
+    else if(Checkpoint ~= "Male_GetTheKey2") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=300;
+            Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=345;
+            Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=1975;
+        }
+        return;
+    }
+    else if(Checkpoint ~= "Male_SprinklerOff") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=300;
+            Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=345;
+            Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=775;
+        }
+        return;
+    }
+    else if(Checkpoint ~= "Lab_BigTowerStairs") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=200;
+            Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=245;
+            Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=425;
+        }
+        return;
+    }
+    else if(Checkpoint ~= "Lab_BigRoomDone") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=200;
+            Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=245;
+            Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=360;
+        }
+        return;
+    }
+    else if(Checkpoint ~= "Lab_BigTower") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=200;
+            Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=245;
+            Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=360;
+        }
+        return;
+    }
+    else if(Checkpoint ~= "Hospital_1stFloor_Chase") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=200;
+            Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=245;
+            Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=460;
+        }
+        return;
+    }
+    else if(Checkpoint ~= "Courtyard1_Basketball") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=270;
+            Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=270;
+            Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=270; //NOT
+            Bot.EnemyPawn.BehaviorTree=OLBTBehaviorTree'02_AI_Behaviors.Soldier_BT';
+            Bot.EnemyPawn.AttackPushKnockbackPower=380.5;
+            Bot.EnemyPawn.AttackNormalKnockbackPower=380.5;
+        }
+        return;
+    }
+    else if(Checkpoint ~= "Courtyard1_SecurityTower") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=270;
+            Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=270;
+            Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=270; //NOT
+            Bot.EnemyPawn.Modifiers.bShouldAttack=true;
+        }
+        return;
+    }
+    else if(Checkpoint ~= "PrisonRevisit_Start") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=1570;
+            Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=1570;
+            Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=1570; //NOT
+            Bot.EnemyPawn.Modifiers.bShouldAttack=false;
+        }
+        return;
+    }
+    else if(Checkpoint ~= "Building2_Floor3_4") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=300;
+            Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=300;
+            Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=300;
+            Bot.EnemyPawn.BehaviorTree = OLBTBehaviorTree'02_AI_Behaviors.Soldier_BT';
+        }
+        return;
+    }
+    else if(Checkpoint ~= "Building2_Floor3_3" || Checkpoint ~= "Building2_Post_Elevator" || Checkpoint ~= "Building2_TortureDone") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            if(Checkpoint != "Building2_TortureDone") {
+                Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=1600;
+                Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=1600;
+                Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=1600;
+            }
+            else {
+                Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=300;
+                Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=345;
+                Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=555;
+                Bot.EnemyPawn.DarknessSpeedValues.PatrolSpeed=300;
+                Bot.EnemyPawn.DarknessSpeedValues.InvestigateSpeed=345;
+                Bot.EnemyPawn.DarknessSpeedValues.ChaseSpeed=555;
+                Bot.EnemyPawn.ElectricitySpeedValues.PatrolSpeed=300;
+                Bot.EnemyPawn.ElectricitySpeedValues.InvestigateSpeed=345;
+                Bot.EnemyPawn.ElectricitySpeedValues.ChaseSpeed=555;
+                Bot.EnemyPawn.MoveSpeed_Override.PatrolSpeed=300;
+                Bot.EnemyPawn.MoveSpeed_Override.InvestigateSpeed=345;
+                Bot.EnemyPawn.MoveSpeed_Override.ChaseSpeed=555;
+            }
+            Bot.EnemyPawn.BehaviorTree = OLBTBehaviorTree'02_AI_Behaviors.Soldier_BT';
+        }
+        return;
+    }
+    else if(Checkpoint ~= "Building2_Floor1_4") {
+        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+            Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=300;
+            Bot.EnemyPawn.NormalSpeedValues.InvestigateSpeed=300;
+            Bot.EnemyPawn.NormalSpeedValues.ChaseSpeed=600;
+            Bot.EnemyPawn.BehaviorTree = OLBTBehaviorTree'02_AI_Behaviors.Soldier_BT';
+        }
+        return;
+    }
     else {
         Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
             Bot.EnemyPawn.NormalSpeedValues.PatrolSpeed=200;
@@ -359,9 +842,8 @@ Function InsanePlusFastEnemy() {
 }
 
 Function InsanePlusOneShot() {
-    local OLBot Bot; 
-    local OLEnemyPawn Enemy;
-
+    local OLBot Bot;
+    
     Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
         Bot.EnemyPawn.AttackNormalDamage=101;
         Bot.EnemyPawn.AttackThrowDamage=101;
@@ -371,959 +853,1610 @@ Function InsanePlusOneShot() {
 }
 
 Exec Function ToggleTimer() {
-    bTimer=!bTimer;
+    bTimer = !bTimer;
 }
 
 Exec Function ResetTimer() {
-    bResetTimer=true;
+    bResetTimer = true;
 }
 
-Exec Function ToggleDeleteDoors(optional bool Force=true) {
-    DelDoorState=!DelDoorState;
-    if(DelDoorState==false) {if(ForceDelDoor==true) {WorldInfo.Game.ClearTimer('DeleteDoors'); ForceDelDoor=false;} return;}
-    if(Force==true) {ForceDelDoor=true;}
-    DeleteDoors();
-}
-
-Exec Function DeleteDoors() {
-    local OLDoor Door;
-    Foreach AllActors(Class'OLDoor', Door) {Door.Destroy();}
-    if(ForceDelDoor==true) {WorldInfo.Game.SetTimer(0.5, false, 'DeleteDoors', Self);}
-}
-
-Exec Function TpEnemy(optional bool Player=false) {
+Exec Function TeleportEnemyToPlayer(Bool ToPlayer=false) {
     local OLEnemyPawn Enemy;
     local Vector C;
     local Rotator Rot;
-    local Vector D;
 
-    GetPlayerViewPoint(C,Rot);
-    C -= vect(0,0,120);
-    D = PickerHero(Pawn).Location + vect(0,0,10); //vect(-7090.32,3245.93,550.04);
-    Foreach AllActors(Class'OLEnemyPawn', Enemy) {
-        Enemy.SetCollision(false,false,false);
-        if(Player==true) {Enemy.SetLocation(D);} else {Enemy.SetLocation(C);}
-        WorldInfo.Game.SetTimer(0.07, false, 'BackPawnCol', self);
+    if(ToPlayer) {
+        C = PickerHero(Pawn).Location + Vect(0,0,10);
     }
-    if(PickerHud(HUD).DisableTeleportSound==false) {PlaySound(TeleportSound);}
+    else {
+        GetPlayerViewPoint(C,Rot); C -= Vect(0,0,120);
+    }
+    Foreach AllActors(Class'OLEnemyPawn', Enemy) {
+        Enemy.SetCollision(false,false);
+        Enemy.SetLocation(C);
+        Enemy.SetRotation(Rot);
+        WorldInfo.Game.SetTimer(0.07, false, 'BackPawnCol', Self);
+    }
+    if(!PickerHud(HUD).DisableTeleportSound) {
+        PlaySound(TeleportSound);
+    }
 }
 
 Function BackPawnCol() {
     local OLEnemyPawn Enemy;
+
     Foreach AllActors(Class'OLEnemyPawn', Enemy) {
-        Enemy.SetCollision(true,true,true);
+        Enemy.SetCollision(true, true);
         WorldInfo.Game.ClearTimer('BackPawnCol');
     }
 }
 
-Exec Function Checkpoint(String Checkpoint, optional bool Save=false) {
+Exec Function Checkpoint(String Checkpoint, Bool Save=AlwaysSaveCheckpoint, Bool Force=false) {
     local OLEnemyPawn Enemy;
-    local OLCheckpoint OLCheckpoint;
+    local OLCheckpointList FullList, List, List2;
     local PickerGame CGame;
+    local Name CPName;
 
     CGame = PickerGame(WorldInfo.Game);
-
-    Foreach AllActors(Class'OLCheckpoint', OLCheckpoint)
-    {
-        if(OLCheckpoint.CheckpointName == Name(Checkpoint)) {
-            PlayerDied();
-            Foreach AllActors(Class'OLEnemyPawn', Enemy) {Enemy.Destroy();}
-            if (CGame.IsPlayingDLC()) {ConsoleCommand("StreamMap DLC_Checkpoints");}
-            else {ConsoleCommand("StreamMap Intro_Persistent");}
-            StartNewGameAtCheckpoint(Checkpoint, Save); return;
+    /*Foreach AllActors(Class'OLCheckpoint', OLCheckpoint) {
+        if(OLCheckpoint.CheckpointName == Name(Checkpoint) || Force) {
+            PickerHero(Pawn).RespawnHero();
+            Foreach AllActors(Class'OLEnemyPawn', Enemy) {
+                Enemy.Destroy();
+            }
+            if (CGame.IsPlayingDLC()) {
+                ConsoleCommand("StreamMap DLC_Checkpoints");
+            }
+            else {
+                ConsoleCommand("StreamMap intro_Persistent");
+            }
+            StartNewGameAtCheckpoint(Checkpoint, Save);
+            return;
         }
     }
-    ClientMessage("Wrong Checkpoint!");
+    SendMsg("Wrong Checkpoint!");*/
+    List = Spawn(Class'OLCheckpointList');
+    List2 = Spawn(Class'OLCheckpointList');
+        List.GameType = OGT_Outlast;
+        List.CheckpointList[0] = 'StartGame';
+        List.CheckpointList[1] = 'Admin_Gates';
+        List.CheckpointList[2] = 'Admin_Garden';
+        List.CheckpointList[3] = 'Admin_Explosion';
+        List.CheckpointList[4] = 'Admin_Mezzanine';
+        List.CheckpointList[5] = 'Admin_MainHall';
+        List.CheckpointList[6] = 'Admin_WheelChair';
+        List.CheckpointList[7] = 'Admin_SecurityRoom';
+        List.CheckpointList[8] = 'Admin_Basement';
+        List.CheckpointList[9] = 'Admin_Electricity';
+        List.CheckpointList[10] = 'Admin_PostBasement';
+        List.CheckpointList[11] = 'Prison_Start';
+        List.CheckpointList[12] = 'Prison_IsolationCells01_Mid';
+        List.CheckpointList[13] = 'Prison_ToPrisonFloor';
+        List.CheckpointList[14] = 'Prison_PrisonFloor_3rdFloor';
+        List.CheckpointList[15] = 'Prison_PrisonFloor_SecurityRoom1';
+        List.CheckpointList[16] = 'Prison_PrisonFloor02_IsolationCells01';
+        List.CheckpointList[17] = 'Prison_Showers_2ndFloor';
+        List.CheckpointList[18] = 'Prison_PrisonFloor02_PostShowers';
+        List.CheckpointList[19] = 'Prison_PrisonFloor02_SecurityRoom2';
+        List.CheckpointList[20] = 'Prison_IsolationCells02_Soldier';
+        List.CheckpointList[21] = 'Prison_IsolationCells02_PostSoldier';
+        List.CheckpointList[22] = 'Prison_OldCells_PreStruggle';
+        List.CheckpointList[23] = 'Prison_OldCells_PreStruggle2';
+        List.CheckpointList[24] = 'Prison_Showers_Exit';
+        List.CheckpointList[25] = 'Sewer_start';
+        List.CheckpointList[26] = 'Sewer_FlushWater';
+        List.CheckpointList[27] = 'Sewer_WaterFlushed';
+        List.CheckpointList[28] = 'Sewer_Ladder';
+        List.CheckpointList[29] = 'Sewer_ToCitern';
+        List.CheckpointList[30] = 'Sewer_Citern1';
+        List.CheckpointList[31] = 'Sewer_Citern2';
+        List.CheckpointList[32] = 'Sewer_PostCitern';
+        List.CheckpointList[33] = 'Sewer_ToMaleWard';
+        List.CheckpointList[34] = 'Male_Start';
+        List.CheckpointList[35] = 'Male_Chase';
+        List.CheckpointList[36] = 'Male_ChasePause';
+        List.CheckpointList[37] = 'Male_Torture';
+        List.CheckpointList[38] = 'Male_TortureDone';
+        List.CheckpointList[39] = 'Male_surgeon';
+        List.CheckpointList[40] = 'Male_GetTheKey';
+        List.CheckpointList[41] = 'Male_GetTheKey2';
+        List.CheckpointList[42] = 'Male_Elevator';
+        List.CheckpointList[43] = 'Male_ElevatorDone';
+        List.CheckpointList[44] = 'Male_Priest';
+        List.CheckpointList[45] = 'Male_Cafeteria';
+        List.CheckpointList[46] = 'Male_SprinklerOff';
+        List.CheckpointList[47] = 'Male_SprinklerOn';
+        List.CheckpointList[48] = 'Courtyard_Start';
+        List.CheckpointList[49] = 'Courtyard_Corridor';
+        List.CheckpointList[50] = 'Courtyard_Chapel';
+        List.CheckpointList[51] = 'Courtyard_Soldier1';
+        List.CheckpointList[52] = 'Courtyard_Soldier2';
+        List.CheckpointList[53] = 'Courtyard_FemaleWard';
+        List.CheckpointList[54] = 'Female_Start';
+        List.CheckpointList[55] = 'Female_Mainchute';
+        List.CheckpointList[56] = 'Female_2ndFloor';
+        List.CheckpointList[57] = 'Female_2ndfloorChute';
+        List.CheckpointList[58] = 'Female_ChuteActivated';
+        List.CheckpointList[59] = 'Female_Keypickedup';
+        List.CheckpointList[60] = 'Female_3rdFloor';
+        List.CheckpointList[61] = 'Female_3rdFloorHole';
+        List.CheckpointList[62] = 'Female_3rdFloorPosthole';
+        List.CheckpointList[63] = 'Female_Tobigjump';
+        List.CheckpointList[64] = 'Female_LostCam';
+        List.CheckpointList[65] = 'Female_FoundCam';
+        List.CheckpointList[66] = 'Female_Chasedone';
+        List.CheckpointList[67] = 'Female_Exit';
+        List.CheckpointList[68] = 'Female_Jump';
+        List.CheckpointList[69] = 'Revisit_Soldier1';
+        List.CheckpointList[70] = 'Revisit_Mezzanine';
+        List.CheckpointList[71] = 'Revisit_ToRH';
+        List.CheckpointList[72] = 'Revisit_RH';
+        List.CheckpointList[73] = 'Revisit_FoundKey';
+        List.CheckpointList[74] = 'Revisit_To3rdfloor';
+        List.CheckpointList[75] = 'Revisit_3rdFloor';
+        List.CheckpointList[76] = 'Revisit_RoomCrack';
+        List.CheckpointList[77] = 'Revisit_ToChapel';
+        List.CheckpointList[78] = 'Revisit_PriestDead';
+        List.CheckpointList[79] = 'Revisit_Soldier3';
+        List.CheckpointList[80] = 'Revisit_ToLab';
+        List.CheckpointList[81] = 'Lab_Start';
+        List.CheckpointList[82] = 'Lab_PremierAirlock';
+        List.CheckpointList[83] = 'Lab_SwarmIntro';
+        List.CheckpointList[84] = 'Lab_SwarmIntro2';
+        List.CheckpointList[85] = 'Lab_Soldierdead';
+        List.CheckpointList[86] = 'Lab_SpeachDone';
+        List.CheckpointList[87] = 'Lab_SwarmCafeteria';
+        List.CheckpointList[88] = 'Lab_EBlock';
+        List.CheckpointList[89] = 'Lab_ToBilly';
+        List.CheckpointList[90] = 'Lab_BigRoom';
+        List.CheckpointList[91] = 'Lab_BigRoomDone';
+        List.CheckpointList[92] = 'Lab_BigTower';
+        List.CheckpointList[93] = 'Lab_BigTowerStairs';
+        List.CheckpointList[94] = 'Lab_BigTowerMid';
+        List.CheckpointList[95] = 'Lab_BigTowerDone';
+        List2.GameType = OGT_Whistleblower;
+        List2.CheckpointList[0] = 'DLC_Start';
+        List2.CheckpointList[1] = 'DLC_Lab_Start';
+        List2.CheckpointList[2] = 'Lab_AfterExperiment';
+        List2.CheckpointList[3] = 'Hospital_Start';
+        List2.CheckpointList[4] = 'Hospital_Free';
+        List2.CheckpointList[5] = 'Hospital_1stFloor_ChaseStart';
+        List2.CheckpointList[6] = 'Hospital_1stFloor_ChaseEnd';
+        List2.CheckpointList[7] = 'Hospital_1stFloor_dropairvent';
+        List2.CheckpointList[8] = 'Hospital_1stFloor_SAS';
+        List2.CheckpointList[9] = 'Hospital_1stFloor_Lobby';
+        List2.CheckpointList[10] = 'Hospital_1stFloor_NeedHandCuff';
+        List2.CheckpointList[11] = 'Hospital_1stFloor_GotKey';
+        List2.CheckpointList[12] = 'Hospital_1stFloor_Chase';
+        List2.CheckpointList[13] = 'Hospital_1stFloor_Crema';
+        List2.CheckpointList[14] = 'Hospital_1stFloor_Bake';
+        List2.CheckpointList[15] = 'Hospital_1stFloor_Crema2';
+        List2.CheckpointList[16] = 'Hospital_2ndFloor_Crema';
+        List2.CheckpointList[17] = 'Hospital_2ndFloor_Canibalrun';
+        List2.CheckpointList[18] = 'Hospital_2ndFloor_Canibalgone';
+        List2.CheckpointList[19] = 'Hospital_2ndFloor_ExitIsLocked';
+        List2.CheckpointList[20] = 'Hospital_2ndFloor_RoomsCorridor';
+        List2.CheckpointList[21] = 'Hospital_2ndFloor_ToLab';
+        List2.CheckpointList[22] = 'Hospital_2ndFloor_Start_Lab_2nd';
+        List2.CheckpointList[23] = 'Hospital_2ndFloor_GazOff';
+        List2.CheckpointList[24] = 'Hospital_2ndFloor_Labdone';
+        List2.CheckpointList[25] = 'Hospital_2ndFloor_Exit';
+        List2.CheckpointList[26] = 'Courtyard1_Start';
+        List2.CheckpointList[27] = 'Courtyard1_RecreationArea';
+        List2.CheckpointList[28] = 'Courtyard1_DupontIntro';
+        List2.CheckpointList[29] = 'Courtyard1_Basketball';
+        List2.CheckpointList[30] = 'Courtyard1_SecurityTower';
+        List2.CheckpointList[31] = 'PrisonRevisit_Start';
+        List2.CheckpointList[32] = 'PrisonRevisit_Radio';
+        List2.CheckpointList[33] = 'PrisonRevisit_Priest';
+        List2.CheckpointList[34] = 'PrisonRevisit_Tochase';
+        List2.CheckpointList[35] = 'PrisonRevisit_Chase';
+        List2.CheckpointList[36] = 'Courtyard2_Start';
+        List2.CheckpointList[37] = 'Courtyard2_FrontBuilding2';
+        List2.CheckpointList[38] = 'Courtyard2_ElectricityOff';
+        List2.CheckpointList[39] = 'Courtyard2_ElectricityOff_2';
+        List2.CheckpointList[40] = 'Courtyard2_ToWaterTower';
+        List2.CheckpointList[41] = 'Courtyard2_WaterTower';
+        List2.CheckpointList[42] = 'Courtyard2_TopWaterTower';
+        List2.CheckpointList[43] = 'Building2_Start';
+        List2.CheckpointList[44] = 'Building2_Attic_Mid';
+        List2.CheckpointList[45] = 'Building2_Attic_Denis';
+        List2.CheckpointList[46] = 'Building2_Floor3_1';
+        List2.CheckpointList[47] = 'Building2_Floor3_2';
+        List2.CheckpointList[48] = 'Building2_Floor3_3';
+        List2.CheckpointList[49] = 'Building2_Floor3_4';
+        List2.CheckpointList[50] = 'Building2_Elevator';
+        List2.CheckpointList[51] = 'Building2_Post_Elevator';
+        List2.CheckpointList[52] = 'Building2_Torture';
+        List2.CheckpointList[53] = 'Building2_TortureDone';
+        List2.CheckpointList[54] = 'Building2_Garden';
+        List2.CheckpointList[55] = 'Building2_Floor1_1';
+        List2.CheckpointList[56] = 'Building2_Floor1_2';
+        List2.CheckpointList[57] = 'Building2_Floor1_3';
+        List2.CheckpointList[58] = 'Building2_Floor1_4';
+        List2.CheckpointList[59] = 'Building2_Floor1_5';
+        List2.CheckpointList[60] = 'Building2_Floor1_5b';
+        List2.CheckpointList[61] = 'Building2_Floor1_6';
+        List2.CheckpointList[62] = 'MaleRevisit_Start';
+        List2.CheckpointList[63] = 'AdminBlock_Start';
+
+    Foreach AllActors(Class'OLCheckpointList', FullList) {
+        FullList.GameType = FullList.Default.GameType;
+        Foreach FullList.CheckpointList(CPName) {
+            if(CPName == Name(Checkpoint)) {
+                ConsoleCommand("Streammap All_Checkpoints");
+                List.GameType = OGT_Outlast;
+                List2.GameType = OGT_Whistleblower;
+                Foreach AllActors(Class'OLEnemyPawn', Enemy) {
+                    Enemy.Destroy();
+                }
+                PickerHero(Pawn).RespawnHero();
+                StartNewGameAtCheckpoint(Checkpoint, Save);
+                List.Destroy();
+                List2.Destroy();
+                return;
+            }
+        }
+    }
+    SendMsg("Wrong Checkpoint Name!");
+    List.Destroy();
+    List2.Destroy();
 }
 
-Exec Function FinishGame(bool Finish=false, optional Byte Game=2) {
-    local Byte D;
-    local Bool F;
-    F=Finish;
-    if(F) {D=1;} else {D=0;} if(Game==2) {ProfileSettings.SetProfileSettingValueId(65, D); ProfileSettings.SetProfileSettingValueId(67, D);}
-    else if(Game==1) {ProfileSettings.SetProfileSettingValueId(67, D);} else {ProfileSettings.SetProfileSettingValueId(65, D);}
-    super.ClientSaveAllPlayerData();
+Exec Function FinishGame(String Game, Bool Finish) {
+    Switch(Game) {
+        case "Main":
+            ProfileSettings.SetProfileSettingValueId(65, Byte(Finish));
+            break;
+        case "DLC":
+            ProfileSettings.SetProfileSettingValueId(67, Byte(Finish));
+            break;
+        case "Both":
+            ProfileSettings.SetProfileSettingValueId(65, Byte(Finish));
+            ProfileSettings.SetProfileSettingValueId(67, Byte(Finish));
+            break;
+        Default:
+            SendMsg("Wrong Game Name!");
+            return;
+            break;
+    }
+    Super.ClientSaveAllPlayerData();
 }
 
-Exec Function CP(String CP, optional bool SV=false) {Checkpoint(CP, SV);}
-Exec Function Gamma(float GammaValue) {OLCheatManager.SetGamma(GammaValue); PickerHud(HUD).AudioVolume=GammaValue;}
-//Exec Function Pause() {super.Pause();}
-Exec Function DmgSelf(float Amount) {PickerHero(Pawn).TakeDamage(int(Amount), none, PickerHero(Pawn).Location, vect(0,0,0), none);}
-Exec Function DS(float Amount) {DmgSelf(Amount);}
-Exec Function Bind(String key, String Command) {ConsoleCommand("setbind " $ Key $ " " $ Command);}
-Exec Function Gravity(float Grav) {WorldInfo.WorldGravityZ=Grav;}
-Exec Function Tpv() {local CheatManager CheatManager; CheatManager.Teleport();}
-Exec Function Paused() {
-    PickerInput.ResetInput();
-    Game.bSoundOnPause=true;
-    //Game.SetPause(PlayerOwner, PickerHud(HUD).CanUnpauseInPauseMenu);
+Exec Function DmgSelf(Float Damage) {
+    if(!PickerHero(Pawn).bGodMode && !PickerHero(Pawn).bNoclip) {
+        PickerHero(Pawn).TakeDamage(Int(Damage), none, PickerHero(Pawn).Location, Vect(0,0,0), none);
+    }
+    else {
+        SendMsg("Unavailable in GodMode!");
+    }
 }
 
-Function PlayerDied()
-{
-    local OLEnemySoldier Enemy;
+Exec Function ChangePlayerHealth(Int NewHealth) {
+    PickerHero(Pawn).Health = NewHealth;
+    PickerHero(Pawn).PreciseHealth = Float(NewHealth);
+}
+
+Exec Function ChangeGameType(OutlastGameType NewType, Bool NoReload=false) {
+    local OLCheckpointList List;
+
+    Foreach AllActors(Class'OLCheckpointList', List) {
+        Switch(NewType) {
+            case OGT_Outlast:
+                SendMsg("Game Type like Miles");
+                break;
+            case OGT_Whistleblower:
+                SendMsg("Game Type like Waylon");
+                break;
+            Default:
+                return;
+                break;
+        }
+        List.GameType = NewType;
+        if(!NoReload) {
+            Reload();
+        }
+    }
+}
+
+Exec Function SetGravity(Float NewGravity) {
+    WorldInfo.WorldGravityZ = NewGravity;
+}
+
+Function PlayerDied() {
     ++ NumDeathsSinceLastCheckpoint;
     InventoryManager.ClearGameplayItems();
     InventoryManager.ClearUnsavedBatteries();
+    TogglePickerMenu(false);
     CurrentObjective = 'None';
+    if(bDefaultPlayer) {
+        PickerHero(Pawn).Mesh.SetSkeletalMesh(Current_SkeletalMesh);
+    }
     PendingRecordingMarker = none;
-    if(bDebugGhost) {Superman();}
-    if(PickerHero(Pawn).GodMode) {ToggleGodMode();}
-    if(FreecamState==true) {ToggleFreecam();}
-    ConsoleCommand("TogglePickerMenu False");
-    if(InsanePlusState) {LSMDamage=true; InsanePlusStamina=100;}
-    if(PlayerState==true) {PickerHero(Pawn).Mesh.SetSkeletalMesh(Current_SkeletalMesh);}
-    if(ChrisState==true) {Foreach AllActors(Class'OLEnemySoldier', Enemy) {Enemy.Mesh.SetSkeletalMesh(SkeletalMesh'02_Soldier.Pawn.Soldier-03');} ChrisState=false;}
-    if(PickerHud(HUD).TSVBool==true) {ConsoleCommand("TOGGLESTREAMINGVOLUMES"); PickerHud(HUD).TSVBool=false;}
-}
-
-Exec Function MadeLight(optional float Bright=0.7, optional float Radius=1024, optional byte R=255, optional byte G=255, optional byte B=255, optional byte A=125, optional bool Shadows=true) {
-
-    local PickerController Controller;
-    local Vector C;
-    local PickerPointLight L;
-    local Rotator Rot;
-
-    GetPlayerViewPoint(C,Rot);
-    L = Spawn(Class'PickerPointLight', Self, 'Picklight', C);
-    L.OnTurn(true);
-    L.SetBrightness(Bright);
-    L.SetColor(R,G,B,A);
-    L.SetRadius(Radius);
-    L.SetCastDynamicShadows(Shadows);
-    `log("[Picker] Made a Light!");
-}
-
-Exec Function NanoCloudd(SkeletalMesh D) {
-    local OLEnemyNanoCloud Cloud;
-
-    Foreach AllActors(Class'OLEnemyNanoCloud', Cloud) {
-        Cloud.Mesh.SkeletalMesh=D;
+    if(AllLoadedState) {
+        ToggleLoadLoc();
+    }
+    if(InsanePlusState) {
+        LSMDamage = true;
+        InsanePlusStamina = 100;
+    }
+    if(ChrisState) {
+        ChrisState = false;
     }
 }
 
-Exec Function MadeSpot(optional float Bright=0.7, optional float Radius=1024, optional byte R=255, optional byte G=255, optional byte B=255, optional byte A=125, optional bool Shadows=true) {
-
-    local PickerController Controller;
+Exec Function MadeLight(Float Bright=0.7, Float Radius=1024, Byte R=255, Byte G=255, Byte B=255, Byte A=125, Bool Shadows=true) {
+    local PickerPointLight L;
     local Vector C;
-    local PickerSpotLight L;
     local Rotator Rot;
 
-    GetPlayerViewPoint(C,Rot);
-    L = Spawn(Class'PickerSpotLight', Self, 'Spotlight', C);
+    GetPlayerViewPoint(C, Rot);
+    L = Spawn(Class'PickerPointLight', Self,, C);
     L.OnTurn(true);
     L.SetBrightness(Bright);
     L.SetColor(R,G,B,A);
     L.SetRadius(Radius);
     L.SetCastDynamicShadows(Shadows);
-    `log("[Picker] Made a Spot!");
+    `log("[Picker] Made a PointLight!");
 }
 
-Exec Function RemoveAllPickerPointLights() {
+Exec Function MadeSpot(Float Bright=0.7, Float Radius=1024, Byte R=255, Byte G=255, Byte B=255, Byte A=125, Bool Shadows=true) {
+    local PickerSpotLight L;
+    local Vector C;
+    local Rotator Rot;
 
+    GetPlayerViewPoint(C,Rot);
+    L = Spawn(Class'PickerSpotLight', Self,, C);
+    L.OnTurn(true);
+    L.SetBrightness(Bright);
+    L.SetColor(R,G,B,A);
+    L.SetRadius(Radius);
+    L.SetCastDynamicShadows(Shadows);
+    `log("[Picker] Made a SpotLight!");
+}
+
+Exec Function MadeDom(Float Bright=0.7, Byte R=255, Byte G=255, Byte B=255, Byte A=125, Bool Shadows=true) {
+    local PickerDominantLight L;
+    local Vector C;
+    local Rotator Rot;
+
+    GetPlayerViewPoint(C,Rot);
+    L = Spawn(Class'PickerDominantLight', Self,, C);
+    L.OnTurn(true);
+    L.SetBrightness(Bright);
+    L.SetColor(R,G,B,A);
+    L.SetCastDynamicShadows(Shadows);
+    `log("[Picker] Made a DominantDirectionalLight!");
+}
+
+Exec Function MadeSky(Float Bright=0.7, Byte R=255, Byte G=255, Byte B=255, Byte A=125, Bool Shadows=true) {
+    local PickerSkyLight L;
+    local Vector C;
+    local Rotator Rot;
+
+    GetPlayerViewPoint(C,Rot);
+    L = Spawn(Class'PickerSkyLight', Self,, C);
+    L.OnTurn(true);
+    L.SetBrightness(Bright);
+    L.SetColor(R,G,B,A);
+    L.SetCastDynamicShadows(Shadows);
+    `log("[Picker] Made a SkyLight!");
+}
+
+Exec Function RemoveAllPickerLights() {
     local PickerPointLight L;
     local PickerSpotLight S;
+    local PickerDominantLight D;
+    local PickerSkyLight SS;
 
-    L.OnTurn(false);
-    S.OnTurn(false);
-    Foreach AllActors(Class'PickerPointLight', L) {L.Destroy();}
-    Foreach AllActors(Class'PickerSpotLight', S) {S.Destroy();}
-    ClientMessage("All Lights Removed!");
+    L.OnTurn(false); S.OnTurn(false); D.OnTurn(false);
+    Foreach AllActors(Class'PickerPointLight', L) {
+        L.Destroy();
+    }
+    Foreach AllActors(Class'PickerSpotLight', S) {
+        S.Destroy();
+    }
+    Foreach AllActors(Class'PickerDominantLight', D) {
+        D.Destroy();
+    }
+    Foreach AllActors(Class'PickerDominantLight', D) {
+        SS.Destroy();
+    }
+    SendMsg("All Picker Lights are Deleted!");
 }
-
-/************************TOGGLE HUD************************/
 
 Exec Function TogglePickerMenu(Bool Show) {
+    local Float AudioVolume;
+
     Switch(Show) {
-    case True:
-        PickerHud(HUD).ToggleHUD=true;
-        MenuMusicComponent = CreateAudioComponent(MenuMusic);
-        if(!PickerHud(HUD).DisableMenuMusic) {MenuMusicComponent.Play();}
-        DisableInput(True);
-        DebugFreeCamSpeed=0;
-        break;
-
-    case False:
-        PickerHud(HUD).ToggleHUD=false;
-        DisableInput(False);
-        PlayerInput.ResetInput();
-        MenuMusicComponent.Stop();
-        DebugFreeCamSpeed=0.0040;
-        break;
+        case true:
+            PickerHud(HUD).ToggleHUD = true;
+            if(!PickerHud(HUD).DisableMenuMusic) {
+                ProfileSettings.GetProfileSettingValueFloat(57, AudioVolume);
+                MenuMusicComponent = CreateAudioComponent(MenuMusic);
+                MenuMusicComponent.Play();
+                MenuMusicComponent.VolumeMultiplier = 1;
+            }
+            DisableInput(true);
+            DebugFreeCamSpeed = 0;
+            break;
+        case false:
+            PickerHud(HUD).ToggleHUD = false;
+            DisableInput(false);
+            PlayerInput.ResetInput();
+            MenuMusicComponent.Stop();
+            DebugFreeCamSpeed = Default.DebugFreeCamSpeed;
+            break;
     }
-    return;
 }
 
-Exec Function TPP(Float X, Float Y, Float Z) {local Vector D; D.X=X; D.Y=Y; D.Z=Z; PickerHero(Pawn).SetLocation(D);}
-Exec Function SetPlayerOnlyMesh(SkeletalMesh Mesh) {PickerHero(Pawn).Mesh.SetSkeletalMesh(Mesh);}
+Exec Function TeleportPlayer(Float X, Float Y, Float Z) {
+    local Vector D;
+
+    D.X=X;
+    D.Y=Y;
+    D.Z=Z;
+    PickerHero(Pawn).SetLocation(D);
+}
+
 Exec Function ToggleGodMode() {
-    PickerHero(Pawn).GodMode=!PickerHero(Pawn).GodMode;
-    if(PickerHero(Pawn).GodMode) {ClientMessage("GodMode ON!"); WorldInfo.Game.SetTimer(0.01, true, 'DisableKillGrab', Self); PickerHero(Pawn).HealthRegenDelay=0.0000000000000001; PickerHero(Pawn).HealthRegenRate=9999999999999999999999999999999999999999;}
-    else {ClientMessage("GodMode OFF!"); ResetKillGrab(); PickerHero(Pawn).HealthRegenDelay=PickerHero(Pawn).Default.HealthRegenDelay; PickerHero(Pawn).HealthRegenRate=PickerHero(Pawn).Default.HealthRegenRate;}
+    local OLEnemyPawn Bot;
+
+    if(RandomizerState) {
+        Reload();
+        return;
+    }
+    else if(InsanePlusState) {
+        DS(9999);
+        return;
+    }
+    PickerHero(Pawn).bGodMode = !PickerHero(Pawn).bGodMode;
+    if(PickerHero(Pawn).bGodMode) {
+        SendMsg("GodMode ON!", 1.5);
+        WorldInfo.Game.SetTimer(0.001, true, 'DisableKillGrab', Self);
+        PickerHero(Pawn).HealthRegenDelay = 0;
+        PickerHero(Pawn).HealthRegenRate = 99 ** 11;
+    }
+    else {
+        SendMsg("GodMode OFF!", 1.5);
+        WorldInfo.Game.ClearTimer('DisableKillGrab', Self);
+        Foreach AllActors(Class'OLEnemyPawn', Bot) {
+            Bot.UpdateDifficultyBasedValues();
+        }
+        PickerHero(Pawn).HealthRegenDelay = PickerHero(Pawn).Default.HealthRegenDelay;
+        PickerHero(Pawn).HealthRegenRate = PickerHero(Pawn).Default.HealthRegenRate;
+    }
 }
 
-Exec Function ResetKillGrab() {
-    local OLBot Bot;
-    local PickerGame CGame;
+Function DisableKillGrab() {
+    local OLEnemyPawn Bot;
 
-    CGame = PickerGame(WorldInfo.Game);
-    WorldInfo.Game.ClearTimer('DisableKillGrab', Self);
-    Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {if(CGame.DifficultyMode==3 || CGame.DifficultyMode==2 || CGame.DifficultyMode==1) {Bot.EnemyPawn.AttackNormalDamage=Bot.EnemyPawn.HardAttackNormalDamage; Bot.EnemyPawn.AttackThrowDamage=Bot.EnemyPawn.HardAttackThrowDamage;} else if(CGame.DifficultyMode==0) {Bot.EnemyPawn.AttackNormalDamage=Bot.EnemyPawn.NrmAttackNormalDamage; Bot.EnemyPawn.AttackThrowDamage=Bot.EnemyPawn.NrmAttackThrowDamage;} Bot.EnemyPawn.AttackGrabChance=Bot.EnemyPawn.Default.AttackGrabChance; Bot.EnemyPawn.AttackNormalKnockbackPower=Bot.EnemyPawn.Default.AttackNormalKnockbackPower; Bot.EnemyPawn.AttackPushKnockbackPower=Bot.EnemyPawn.Default.AttackPushKnockbackPower;}
+    Foreach AllActors(Class'OLEnemyPawn', Bot)  {
+        Bot.AttackGrabChance = 0;
+        Bot.AttackNormalDamage = 0;
+        Bot.AttackThrowDamage = 0;
+        Bot.AttackNormalKnockbackPower = 0;
+        Bot.AttackPushKnockbackPower = 0;
+        Bot.VaultKnockbackPower = 0;
+    }
 }
 
-Exec Function DisableKillGrab() {
-    local OLBot Bot;
-    Foreach WorldInfo.AllControllers(Class'OLBot', Bot) 
-    {Bot.EnemyPawn.AttackGrabChance=0; Bot.EnemyPawn.AttackNormalDamage=0; Bot.EnemyPawn.AttackThrowDamage=0; Bot.EnemyPawn.AttackNormalKnockbackPower=0; Bot.EnemyPawn.AttackPushKnockbackPower=0;}
+Exec Function ToggleLoadLoc() {
+    AllLoadedState=!AllLoadedState;
+    LoadLoc(AllLoadedState);
 }
-
-Exec Function ToggleLoadLoc() {AllLoadedState=!AllLoadedState; LoadLoc(AllLoadedState);}
-Exec Function LoadLoc(bool Load) {
+Function LoadLoc(Bool Load) {
     local PickerController PC;
     local LevelStreamingVolume Volume;
-    local int I;
+    local Int I;
 
     Foreach AllActors(Class'LevelStreamingVolume', Volume) {Volume.bDisabled=Load;}
     if(Load) {
-        Foreach WorldInfo.AllControllers(class'PickerController', PC) {
-        I = 0;
-        J0xF6:
-        if(I < WorldInfo.StreamingLevels.Length) {
-        PC.ClientUpdateLevelStreamingStatus(WorldInfo.StreamingLevels[I].PackageName, true, true, false);
-        ++ I;
-        goto J0xF6;}
+        Foreach WorldInfo.AllControllers(Class'PickerController', PC) {
+            I = 0;
+            J0xF6:
+                if(I < WorldInfo.StreamingLevels.Length) {
+                    ClientUpdateLevelStreamingStatus(WorldInfo.StreamingLevels[I].PackageName, true, true, false);
+                    ++I;
+                    goto J0xF6;
+                }
         }
     }
 }
 
-Exec Function ChangeDoorsMaterial(String Material) {
+Exec Function ChangeDoorMaterial(String Material) {
     local OLDoor Door;
     local EDoorMaterial M;
 
-    if(Material == "Wood") {M=OLDM_Wood;}
-    else if(Material == "Metal") {M=OLDM_Metal;}
-    else if(Material == "SecurityDoor") {M=OLDM_SecurityDoor;}
-    else if(Material == "BigPrisonDoor") {M=OLDM_BigPrisonDoor;}
-    else if(Material == "BigWoodenDoor") {M=OLDM_BigWoodenDoor;}
-    ConsoleCommand("Set OLDoor DoorMaterial " $ M);
-}
-
-Exec Function ChangeDoorsMeshType(String MeshType) {
-    local OLDoor Door;
-    local EOLDoorMeshType MT;
-
-    if(MeshType == "Undefined") {MT=DMesh_Undefined;}
-    else if(MeshType == "Wooden") {MT=DMesh_Wooden;}
-    else if(MeshType == "WoodenOld") {MT=DMesh_WoodenOld;}
-    else if(MeshType == "WoodenWindow") {MT=DMesh_WoodenWindow;}
-    else if(MeshType == "WoodenWindowSmall") {MT=DMesh_WoodenWindowSmall;}
-    else if(MeshType == "WoodenWindowOld") {MT=DMesh_WoodenWindowOld;}
-    else if(MeshType == "WoodenWindowOldSmall") {MT=DMesh_WoodenWindowOldSmall;}
-    else if(MeshType == "WoodenWindowBig") {MT=DMesh_WoodenWindowBig;}
-    else if(MeshType == "Metal") {MT=DMesh_Metal;}
-    else if(MeshType == "MetalWindow") {MT=DMesh_MetalWindow;}
-    else if(MeshType == "MetalWindowSmall") {MT=DMesh_MetalWindowSmall;}
-    else if(MeshType == "Enforced") {MT=DMesh_Enforced;}
-    else if(MeshType == "Grid") {MT=DMesh_Grid;}
-    else if(MeshType == "Prison") {MT=DMesh_Prison;}
-    else if(MeshType == "Entrance") {MT=DMesh_Entrance;}
-    else if(MeshType == "Bathroom") {MT=DMesh_Bathroom;}
-    else if(MeshType == "IsolatedCell") {MT=DMesh_IsolatedCell;}
-    else if(MeshType == "Locker") {MT=DMesh_Locker;}
-    else if(MeshType == "LockerRusted") {MT=DMesh_LockerRusted;}
-    else if(MeshType == "LockerBeige") {MT=DMesh_LockerBeige;}
-    else if(MeshType == "LockerGreen") {MT=DMesh_LockerGreen;}
-    else if(MeshType == "Bathroom") {MT=DMesh_Bathroom;}
-    else if(MeshType == "Glass") {MT=DMesh_Glass;}
-    else if(MeshType == "Fence") {MT=DMesh_Fence;}
-    else if(MeshType == "LockerHole") {MT=DMesh_LockerHole;}
-    ConsoleCommand("Set OLDoor DoorMeshType " $ MT);
-}
-
-Exec Function LoadLevel(name PackageName, optional bool Always=true, optional bool bShouldBeLoaded=true, optional bool bShouldBeVisible=true) {
-    local PickerController PC;
-    local LevelStreamingVolume Volume;
-    local int I;
-
-    Foreach AllActors(Class'LevelStreamingVolume', Volume) {AllLoadedState=!AllLoadedState; Volume.bDisabled=Always;}
-    if(PackageName != 'All') {Foreach WorldInfo.AllControllers(class'PickerController', PC) {PC.ClientUpdateLevelStreamingStatus(PackageName, bShouldBeLoaded, bShouldBeVisible, false);}}
-    else {
-        Foreach WorldInfo.AllControllers(class'PickerController', PC) {
-            I = 0;
-            J0xF6:
-            if(I < WorldInfo.StreamingLevels.Length) {
-            PC.ClientUpdateLevelStreamingStatus(WorldInfo.StreamingLevels[I].PackageName, bShouldBeLoaded, bShouldBeVisible, false);
-            ++ I;
-            goto J0xF6;}            
-        }
+    Switch(Material) {
+        case "Wood":
+            M=OLDM_Wood;
+            break;
+        case "Metal":
+            M=OLDM_Metal;
+            break;
+        case "SecurityDoor":
+            M=OLDM_SecurityDoor;
+            break;
+        case "BigPrisonDoor":
+            M=OLDM_BigPrisonDoor;
+            break;
+        case "BigWoodenDoor":
+            M=OLDM_BigWoodenDoor;
+            break;
+        Default:
+            SendMsg("Wrong Door Material!");
+            return;
+            break;
     }
+    Foreach AllActors(Class'OLDoor', Door) {
+        Door.DoorMaterial = M;
+    }
+}
+
+Exec Function ChangeDoorMeshType(String MeshType, Name CustomSndMat='Default') {
+    local OLDoor Door;
+    local EDoorMaterial SndMat;
+    local StaticMesh MainMeshL, MainMeshR;
+    local SkeletalMesh BreakMeshL, BreakMeshR;
+    local MaterialInstanceConstant MainMeshMat, MainMeshMat2;
+
+    SendMsg(MeshType @ String(CustomSndMat));
+
+    Switch(MeshType) {
+        case "Undefined":
+            MainMeshL = StaticMesh'door.Standard.DOOR_L';
+            MainMeshR = StaticMesh'door.Standard.DOOR_R';
+            break;
+        case "Wooden":
+            MainMeshL = StaticMesh'door.Standard.DOOR_L';
+            MainMeshR = StaticMesh'door.Standard.DOOR_R';
+            MainMeshMat = MaterialInstanceConstant'door.Standard.wooden_door_new_mat';
+            break;
+        case "WoodenOld":
+            MainMeshL = StaticMesh'door.Standard.DOOR_L';
+            MainMeshR = StaticMesh'door.Standard.DOOR_R';
+            MainMeshMat = MaterialInstanceConstant'door.Standard.wooden_door_mat';
+            break;
+        case "WoodenWindow":
+            MainMeshL = StaticMesh'door.Standard.Door_windows_L';
+            MainMeshR = StaticMesh'door.Standard.Door_windows_R';
+            MainMeshMat = MaterialInstanceConstant'door.Standard.wooden_door_new_mat';
+            break;
+        case "WoodenWindowSmall":
+            MainMeshL = StaticMesh'door.Standard.MaleWardDoor_L';
+            MainMeshR = StaticMesh'door.Standard.MaleWardDoor_R';
+            MainMeshMat = MaterialInstanceConstant'door.Standard.wooden_door_new_mat';
+            break;
+        case "WoodenWindowOld":
+            MainMeshL = StaticMesh'door.Standard.Door_windows_L';
+            MainMeshR = StaticMesh'door.Standard.Door_windows_R';
+            MainMeshMat = MaterialInstanceConstant'door.Standard.wooden_door_mat';
+            break;
+        case "WoodenWindowOldSmall":
+            MainMeshL = StaticMesh'door.Standard.MaleWardDoor_L';
+            MainMeshR = StaticMesh'door.Standard.MaleWardDoor_R';
+            MainMeshMat = MaterialInstanceConstant'door.Standard.wooden_door_mat';
+            break;
+        case "Metal":
+            MainMeshL = StaticMesh'door.Standard.DOOR_L';
+            MainMeshR = StaticMesh'door.Standard.DOOR_R';
+            MainMeshMat = MaterialInstanceConstant'door.Standard.Metal_door_mat';
+            break;
+        case "MetalWindow":
+            MainMeshL = StaticMesh'door.Standard.Door_windows_L';
+            MainMeshR = StaticMesh'door.Standard.Door_windows_R';
+            break;
+        case "MetalWindowSmall":
+            MainMeshL = StaticMesh'door.Standard.MaleWardDoor_L';
+            MainMeshR = StaticMesh'door.Standard.MaleWardDoor_R';
+            break;
+        case "Enforced":
+            MainMeshL = StaticMesh'door.Door_Enforced_L';
+            MainMeshR = StaticMesh'door.Door_Enforced_R';
+            break;
+        case "Grid":
+            MainMeshL = StaticMesh'door.Grid.Door_grid_L';
+            MainMeshR = StaticMesh'door.Grid.Door_grid_R';
+            break;
+        case "Prison":
+            MainMeshL = StaticMesh'door.Standard.PrisonDoor_L-01';
+            MainMeshR = StaticMesh'door.Standard.PrisonDoor_R-01';
+            break;
+        case "Entrance":
+            MainMeshL = StaticMesh'door.Standard.DoorWood02_L';
+            MainMeshR = StaticMesh'door.Standard.DoorWood02_R';
+            break;
+        case "Bathroom":
+            MainMeshL = StaticMesh'Bathroom.toilet_cabine.toilet_cabine_Door_L';
+            MainMeshR = StaticMesh'Bathroom.toilet_cabine.toilet_cabine_Door_R';
+            break;
+        case "IsolatedCell":
+            MainMeshL = StaticMesh'Mod_Padded.PaddedDoor-01';
+            MainMeshR = StaticMesh'Mod_Padded.PaddedDoor-01';
+            break;
+        case "Locker":
+            MainMeshL = StaticMesh'Warehouse.Locker.Large_Locker_door';
+            MainMeshR = StaticMesh'Warehouse.Locker.Large_Locker_door';
+            MainMeshMat = MaterialInstanceConstant'Warehouse.Locker.Locker_mat';
+            break;
+        case "LockerRusted":
+            MainMeshL = StaticMesh'Warehouse.Locker.Large_Locker_door';
+            MainMeshR = StaticMesh'Warehouse.Locker.Large_Locker_door';
+            MainMeshMat = MaterialInstanceConstant'Warehouse.Locker.LockerRustDoor01_INST';
+            break;
+        case "LockerBeige":
+            MainMeshL = StaticMesh'Warehouse.Locker.Large_Locker_door';
+            MainMeshR = StaticMesh'Warehouse.Locker.Large_Locker_door';
+            MainMeshMat = MaterialInstanceConstant'Warehouse.Locker.LockerBeige_mat';
+            break;
+        case "LockerGreen":
+            MainMeshL = StaticMesh'Warehouse.Locker.Large_Locker_door';
+            MainMeshR = StaticMesh'Warehouse.Locker.Large_Locker_door';
+            MainMeshMat = MaterialInstanceConstant'Warehouse.Locker.Locker_mat';
+            break;
+        case "Glass":
+            MainMeshL = StaticMesh'door.Grid.Door_grid_L';
+            MainMeshR = StaticMesh'door.Grid.Door_grid_R';
+            MainMeshMat2 = MaterialInstanceConstant'Generic_mat.Glass.GlassDoorFrame-01_INST';
+            break;
+        case "Fence":
+            MainMeshL = StaticMesh'Door_DLC.Door_Fence01_L';
+            MainMeshR = StaticMesh'Door_DLC.Door_Fence01_R';
+            break;
+        case "ForceGate":
+            MainMeshL = StaticMesh'Asylum_Exterior-LD.door.Gate.forge_gate';
+            MainMeshR = StaticMesh'Asylum_Exterior-LD.door.Gate.forge_gate';
+            MainMeshMat = MaterialInstanceConstant'Asylum_Exterior-LD.door.Gate.Forge_gate_mat';
+            break;
+        case "Gate":
+            MainMeshL = StaticMesh'Asylum_Exterior-LD.door.Gate.GateDoor-01_R';
+            MainMeshR = StaticMesh'Asylum_Exterior-LD.door.Gate.GateDoor-01_R';
+            MainMeshMat = MaterialInstanceConstant'Asylum_Exterior-LD.door.Gate.DoorGateMetal-01_INST';
+            break;
+        case "LockerHole":
+            MainMeshL = StaticMesh'Door_DLC.Large_Locker_Door_Hole';
+            MainMeshR = StaticMesh'Door_DLC.Large_Locker_Door_Hole';
+            break;
+        Default:
+            SendMsg("Wrong Door Mesh Type!");
+            return;
+            break;
+
+    }
+    Foreach AllActors(Class'OLDoor', Door) {
+        if(Door.bReverseDirection/*GetRightMost(String(Door.Mesh.StaticMesh)) == "R"*/) {
+            Door.Mesh.SetStaticMesh(MainMeshR);
+        }
+        else {
+            Door.Mesh.SetStaticMesh(MainMeshL);
+        }
+        Door.Mesh.SetMaterial(0, MainMeshMat);
+        Door.Mesh.SetMaterial(1, MainMeshMat2);
+        Switch(CustomSndMat) {
+            case 'Wood':
+                SndMat = OLDM_Wood;
+                break;
+            case 'Metal':
+                SndMat = OLDM_Metal;
+                break;
+            case 'SecurityDoor':
+                SndMat = OLDM_SecurityDoor;
+                break;
+            case 'BigPrisonDoor':
+                SndMat = OLDM_BigPrisonDoor;
+                break;
+            case 'BigWoodenDoor':
+                SndMat = OLDM_BigWoodenDoor;
+                break;
+            Default:
+                if(CustomSndMat != 'Default') {
+                    SendMsg("Wrong Door Sound Material!");
+                }
+                return;
+                break;
+            }
+        Door.DoorMaterial = SndMat;
+    }
+    //ConsoleCommand("Set OLDoor DoorMeshType" @ MT);
 }
 
 Exec Function TSVCommand() {
-    PickerHud(HUD).TSVBool=!PickerHud(HUD).TSVBool;
-    if(PickerHud(HUD).TSVBool) {ClientMessage("Streaming Volumes: Freezed!");}
-    else if(!PickerHud(HUD).TSVBool) {ClientMessage("Streaming Volumes: Unfreezed!");}
+    PickerHud(HUD).TSVBool = !PickerHud(HUD).TSVBool;
+    if(PickerHud(HUD).TSVBool) {
+        SendMsg("Streaming Volumes are Freezed!");
+    }
+    else {
+        SendMsg("Streaming Volumes are Unfreezed!");
+    }
     ConsoleCommand("TOGGLESTREAMINGVOLUMES");
 }
 
-Exec Function ChangeFOV(optional float DefFOV=90, optional float RunFOV=100, optional float CameraFOV=83) {
+Exec Function ChangeFOV(Float DefFOV=90, Float RunFOV=100, Float CameraFOV=83) {
     local PickerHero Hero;
 
     Hero = PickerHero(Pawn);
-    Hero.DefaultFOV=DefFOV;
-    Hero.RunningFOV=RunFOV;
-    Hero.CamcorderMaxFOV=CameraFOV;
-    Hero.CamcorderNVMaxFOV=CameraFOV;
-    ClientMessage("Change FOV: " $ Hero.DefaultFOV $ "/" $ Hero.RunningFOV $ "/" $ Hero.CamcorderMaxFOV $ "!");
+    Hero.DefaultFOV = DefFOV;
+    Hero.RunningFOV = RunFOV;
+    Hero.CamcorderMaxFOV = CameraFOV;
+    Hero.CamcorderNVMaxFOV = CameraFOV;
+    SendMsg("New FOV:" @ DefFOV $ "/" $ RunFOV $ "/" $ CameraFOV $ "!");
 }
 
-Exec Function ToggleDisAI() {
-    local OLBot Bot;
-
-    bDisAI=!bDisAI;
-    ForceDisAI=false;
-    if(bDisAI) {ForceDisAI=true; DisAI(); ClientMessage("AI Disabled!");}
-    else if(!bDisAI) {ForceDisAI=false; WorldInfo.Game.ClearTimer('DisAI');
-        Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
-            Bot.EnemyPawn.Modifiers.bShouldAttack = true; Bot.SightComponent.bIgnoreTarget = false;
-            Bot.Recalculate(); ClientMessage("AI Enabled!");
+Exec Function ToggleDisAI(Bool Force=true) {
+    bDisAI = !bDisAI;
+    WorldInfo.Game.ClearTimer('DisableAI', Self);
+    WorldInfo.Game.ClearTimer('EnableAI', Self);
+    if(Force) {
+        if(bDisAI) {
+            WorldInfo.Game.SetTimer(0.0001, true, 'DisableAI', Self);
+            SendMsg("Force: AI is Disabled!");
+        }
+        else {
+            WorldInfo.Game.SetTimer(0.0001, true, 'EnableAI', Self);
+            SendMsg("Force: AI is Enabled!");
+        }
+    }
+    else {
+        if(bDisAI) {
+            DisableAI();
+            SendMsg("AI is Disabled!");
+        }
+        else {
+            EnableAI();
+            SendMsg("AI is Enabled!");
         }
     }
 }
 
-Function LMFree(bool Free=true) {
-    bLMFree=!bLMFree;
+Function EnableAI() {
+    local OLBot Bot;
+
+    Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+        Bot.EnemyPawn.Modifiers.bShouldAttack = true;
+        Bot.SightComponent.bIgnoreTarget = false;
+        Bot.Recalculate();
+    }
+}
+
+Function DisableAI() {
+    local OLBot Bot;
+
+    Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+        Bot.EnemyPawn.Modifiers.bShouldAttack = false;
+        Bot.VisualDisturbance.TimeSinceUpdate =- 1.0;
+        Bot.AudioDisturbance.TimeSinceUpdate =- 1.0;
+        Bot.SightComponent.bIgnoreTarget = true;
+        Bot.Recalculate();
+    }
+}
+
+Exec Function LMFree(Bool bLMFree=false) {
+    local Int Index;
+
     if(bLMFree) {
-    PickerHero(Pawn).LocomotionModeParams[1].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).LocomotionModeParams[2].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).LocomotionModeParams[3].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).LocomotionModeParams[4].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).LocomotionModeParams[5].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).LocomotionModeParams[6].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).LocomotionModeParams[7].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).LocomotionModeParams[8].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).LocomotionModeParams[9].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).LocomotionModeParams[10].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).LocomotionModeParams[11].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).LocomotionModeParams[12].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).LocomotionModeParams[13].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).LocomotionModeParams[14].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).LocomotionModeParams[15].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    return;
+        While(Index <= 15) {
+            PickerHero(Pawn).LocomotionModeParams[Index].GP.CameraMode = CRM_UserControlled;
+            ++Index;
+        }
     }
     else {
-    PickerHero(Pawn).LocomotionModeParams[1].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).LocomotionModeParams[2].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).LocomotionModeParams[3].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).LocomotionModeParams[4].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Spring;
-    PickerHero(Pawn).LocomotionModeParams[5].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).LocomotionModeParams[6].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).LocomotionModeParams[7].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).LocomotionModeParams[8].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).LocomotionModeParams[9].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).LocomotionModeParams[10].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).LocomotionModeParams[11].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).LocomotionModeParams[12].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).LocomotionModeParams[13].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).LocomotionModeParams[14].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).LocomotionModeParams[15].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
+        While(Index <= 70) {
+            PickerHero(Pawn).LocomotionModeParams[Index].GP.CameraMode = PickerHero(Pawn).Default.LocomotionModeParams[Index].GP.CameraMode;
+            ++Index;
+        }
     }
 }
 
-Function SMFree(bool Free=true) {
-    bSMFree=!bSMFree;
+Exec Function SMFree(Bool bSMFree=false) {
+    local Int Index;
+
     if(bSMFree) {
-    PickerHero(Pawn).SpecialMoveParams[1].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[2].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[3].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[4].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[5].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[6].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[7].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[8].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[9].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[10].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[11].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[12].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[13].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[14].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[15].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[16].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[17].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[18].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[19].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[20].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[21].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[22].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[23].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[24].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[25].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[26].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[27].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[28].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[29].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[30].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[31].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[32].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[33].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[34].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[35].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[36].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[37].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[38].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[39].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[40].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[41].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[42].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[43].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[44].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[45].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[46].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[47].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[48].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[49].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[50].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[51].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[52].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[53].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[54].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[55].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[56].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[57].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[58].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[59].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[60].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[61].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[62].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[63].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[64].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[65].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[66].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[67].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[68].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[69].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[70].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-
-    /*PickerHero(Pawn).SpecialMoveParams[1].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[2].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[3].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[4].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[5].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[6].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[7].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[8].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[9].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[10].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[11].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[12].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[13].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[14].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[15].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[16].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[17].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[18].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[19].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[20].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[21].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[22].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[23].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[24].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[25].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[26].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[27].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[28].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[29].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[30].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[31].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[32].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[33].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[34].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[35].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[36].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[37].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[38].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[39].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[40].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[41].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[42].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[43].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[44].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[45].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[46].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[47].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[48].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[49].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[50].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[51].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[52].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[53].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[54].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[55].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[56].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[57].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[58].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[59].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[60].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[61].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[62].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[63].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[64].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[65].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[66].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[67].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[68].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[69].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;
-    PickerHero(Pawn).SpecialMoveParams[70].AnimName=PickerHero(Pawn).AnimNameJumpOverFromRun;*/
-    return;
+        While(Index <= 70) {
+            PickerHero(Pawn).SpecialMoveParams[Index].GP.CameraMode = CRM_UserControlled;
+            ++Index;
+        }
     }
     else {
-    PickerHero(Pawn).SpecialMoveParams[1].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[2].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[3].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[4].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[5].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[6].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[7].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[8].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[9].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[10].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[11].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[12].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[13].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[14].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[15].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[16].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[17].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[18].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[19].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[20].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[21].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[22].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[23].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[24].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[25].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[26].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[27].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[28].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[29].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[30].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[31].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[32].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[33].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[34].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[35].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[36].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[37].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[38].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[39].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[40].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[41].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[42].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[43].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[44].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[45].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[46].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[47].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[48].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[49].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[50].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Locked;
-    PickerHero(Pawn).SpecialMoveParams[51].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[52].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[53].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[54].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[55].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[56].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_UserControlled;
-    PickerHero(Pawn).SpecialMoveParams[57].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[58].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[59].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[60].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[61].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[62].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[63].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[64].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[65].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[66].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[67].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_Limited;
-    PickerHero(Pawn).SpecialMoveParams[68].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[69].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-    PickerHero(Pawn).SpecialMoveParams[70].GP.CameraMode=PickerHero(Pawn).CameraRotationMode.CRM_FullyAnimated;
-}
+        While(Index <= 70) {
+            PickerHero(Pawn).SpecialMoveParams[Index].GP.CameraMode = PickerHero(Pawn).Default.SpecialMoveParams[Index].GP.CameraMode;
+            ++Index;
+        }
+    }
 }
 
 Exec Function AnimFree() {
-    bAnimFree=!bAnimFree;
-    if(bLMFree && bSMFree) {LMFree(false); SMFree(false); return;}
-    else {LMFree(true); SMFree(true);}
+    bAnimFree = !bAnimFree;
+    LMFree(bAnimFree);
+    SMFree(bAnimFree);
 }
 
-Exec Function DisAI() {
-    local OLBot Bot;
-    if(ForceDisAI) {
-    Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
-        Bot.EnemyPawn.Modifiers.bShouldAttack=false; Bot.VisualDisturbance.TimeSinceUpdate=-1.0;
-        Bot.AudioDisturbance.TimeSinceUpdate=-1.0; Bot.SightComponent.bIgnoreTarget=true;
-        Bot.Recalculate();
-    } WorldInfo.Game.SetTimer(0.1, false, 'DisAI', Self);
+Exec Function ToggleDoorDelete(Bool Force=false, Bool Reset=false) {
+    DoorDelState = !DoorDelState;
+    WorldInfo.Game.ClearTimer('DeleteDoors', Self);
+    if(DoorDelState) {
+        if(Force) {
+            SendMsg("Force: All Doors are Deleted!");
+            WorldInfo.Game.SetTimer(0.001, true, 'DeleteDoors', Self);
+        }
+        else {
+            DoorDelState = false;
+            SendMsg("All Doors are Deleted!");
+            DeleteDoors();
+        }
+    }
+    else {
+        if(Reset) {
+            DeleteDoors(true);
+        }
+        SendMsg("Stop: All Doors are Deleted!");
     }
 }
 
-Exec Function ToggleTypeDoors(optional bool Force=true) {
-    DoorTypeState=!DoorTypeState;
-    if(DoorTypeState==true) {
-    ForceActiveDoorTypeNormal=false;
-    WorldInfo.Game.ClearTimer('NormalDoors');
-    if(Force==true) {ClientMessage("Force All Doors: Locker!"); ForceActiveDoorTypeLocker=true;}
-    else if(Force==false) {ClientMessage("All Doors: Locker!"); ForceActiveDoorTypeLocker=false;}
-    WorldInfo.Game.SetTimer(0.5, false, 'LockerDoors', Self); return;}
-    ForceActiveDoorTypeLocker=false;
-    WorldInfo.Game.ClearTimer('LockerDoors');
-    if(Force==true) {ClientMessage("Force All Doors: Normal!"); ForceActiveDoorTypeNormal=true;}
-    else if(Force==false) {ClientMessage("All Doors: Normal!"); ForceActiveDoorTypeNormal=false;}
-    WorldInfo.Game.SetTimer(0.5, false, 'NormalDoors', Self);
-}
-
-Exec Function LockerDoors() {
+Exec Function DeleteDoors(Bool Reset=false) {
     local OLDoor Door;
 
-    Foreach Allactors(Class'OLDoor', Door) {Door.DoorType=DT_Locker;}
-    if(ForceActiveDoorTypeLocker==true) {WorldInfo.Game.SetTimer(0.5, false, 'LockerDoors', Self);}
-}
-
-Exec Function NormalDoors() {
-    local OLDoor Door;
-
-    Foreach Allactors(Class'OLDoor', Door) {Door.DoorType=DT_Normal;}
-    if(ForceActiveDoorTypeNormal==true) {WorldInfo.Game.SetTimer(0.5, false, 'NormalDoors', Self);}
-}
-
-Exec Function ToggleDoorsState(optional bool Force=true) {
-    DoorState=!DoorState;
-    if(DoorState==true) {
-    ForceActiveDoorStateLock=false;
-    WorldInfo.Game.ClearTimer('LockDoors');
-    if(Force==true) {ClientMessage("Force All Doors: Unlocked!"); ForceActiveDoorStateUnlock=true;}
-    else if(Force==false) {ClientMessage("All Doors: Unlocked!"); ForceActiveDoorStateUnlock=false;}
-    WorldInfo.Game.SetTimer(0.5, false, 'UnlockDoors', Self); return;}
-    ForceActiveDoorStateUnlock=false;
-    WorldInfo.Game.ClearTimer('UnlockDoors');
-    if(Force==true) {ClientMessage("Force All Doors: Locked!");ForceActiveDoorStateLock=true;}
-    else if(Force==false) {ClientMessage("All Doors: Locked!"); ForceActiveDoorStateLock=false;}
-    WorldInfo.Game.SetTimer(0.5, false, 'LockDoors', Self);
-}
-
-Exec Function LockDoors() {
-    local OLDoor Door;
-
-    Foreach Allactors(Class'OLDoor', Door) {Door.bLocked=true;}
-    if(ForceActiveDoorStateLock==true) {WorldInfo.Game.SetTimer(0.5, false, 'LockDoors', Self);}
-}
-
-Exec Function UnlockDoors() {
-    local OLDoor Door;
-
-    Foreach Allactors(Class'OLDoor', Door) {Door.bLocked=false; Door.bBlocked=false;}
-    if(ForceActiveDoorStateUnlock==true) {WorldInfo.Game.SetTimer(0.5, false, 'UnlockDoors', Self);}
-}
-
-Exec Function RandomScale() {
-    local Actor A;
-    local Float F;
-    local TriggerVolume TriggerVolume;
-    local LevelStreamingVolume LevelStreamingVolume;
-    local OLCheckpoint OLCheckpoint;
-
-    if(PickerHud(HUD).TSVBool==false) {TSVCommand();}
-
-Foreach AllActors(Class'Actor', A) {
-    if(A != PickerHero(Pawn) && A != TriggerVolume && A != LevelStreamingVolume && A != OLCheckpoint) {
-    F = RandRange(0.5, 3);
-    A.SetDrawScale(F);
-    }
+    Foreach AllActors(Class'OLDoor', Door) {
+        if(Reset) {
+            Door.SetHidden(false);
+            Door.SetDrawScale(1);
+            Door.SetCollision(true, true, true);
+        }
+        else {
+            Door.SetHidden(true);
+            Door.SetDrawScale(0);
+            Door.SetCollision(false, false, false);
+        }
     }
 }
 
-Exec Function LLL() {
-local array<Name> AllPersistent;
-AllPersistent[0] = 'Sewer_Persistent';
-AllPersistent[1] = 'Prison_Persistent';
-WorldInfo.PrepareMapChange(AllPersistent);
-WorldInfo.CommitMapChange();
+Exec Function ToggleDoorType(Bool Force=false) {
+    DoorTypeState = !DoorTypeState;
+    WorldInfo.Game.ClearTimer('NormalDoor', Self);
+    WorldInfo.Game.ClearTimer('LockerDoor', Self);
+    if(Force) {
+        if(DoorTypeState) {
+            SendMsg("Force: All Doors are Locker!");
+            WorldInfo.Game.SetTimer(0.0001, true, 'LockerDoor', Self);
+        }
+        else {
+            SendMsg("Force: All Doors are Normal!");
+            WorldInfo.Game.SetTimer(0.0001, true, 'NormalDoor', Self);
+        }
+    }
+    else {
+        if(DoorTypeState) {
+            SendMsg("All Doors are Locker!");
+            LockerDoor();
+        }
+        else {
+            SendMsg("All Doors are Normal!");
+            NormalDoor();
+        }
+    }
 }
 
-Exec Function SHH(bool b=false) {PickerHud(HUD).CamcorderHud.SetVisible(b);}
+Exec Function LockerDoor() {
+    local OLDoor Door;
 
-Exec Function ScalePulse(bool dd=true) {
-    local Float SS;
-    local Bool D;
-    local Vector C;
-    local OLEnemyPawn Enemy;
-
-    if(dd) {QHHD=1; SS=1;} else {SS=QHHD;}
-    if(SS >= 1 || D==true) {SS -= 0.01; D=true;}
-        if(SS <= 0.1) {SS += 0.01; D=false;}
-        QHHD=SS;
-        C.X = SS;
-        C.Y = SS;
-        C.Z = SS;
-    Foreach AllActors(Class'OLEnemyPawn', Enemy) {
-        Enemy.SetDrawScale3D(C);
+    Foreach AllActors(Class'OLDoor', Door) {
+        Door.DoorType = DT_Locker;
+    }
 }
-    WorldInfo.Game.SetTimer(0.01, true, 'ScalePulse', Self);
+
+Exec Function NormalDoor() {
+    local OLDoor Door;
+
+    Foreach AllActors(Class'OLDoor', Door) {
+        Door.DoorType = DT_Normal;
+    }
+}
+
+Exec Function ToggleDoorState(Bool Force=PickerHud(HUD).bForceFuncs) {
+    DoorLockState = !DoorLockState;
+    WorldInfo.Game.ClearTimer('LockDoor', Self);
+    WorldInfo.Game.ClearTimer('UnlockDoor', Self);
+    if(Force) {
+        if(DoorLockState) {
+            SendMsg("Force: All Doors are Unlocked!");
+            WorldInfo.Game.SetTimer(0.0001, true, 'UnlockDoor', Self);
+        }
+        else {
+            SendMsg("Force: All Doors are Locked!");
+            WorldInfo.Game.SetTimer(0.0001, true, 'LockDoor', Self);
+        }
+    }
+    else {
+        if(DoorLockState) {
+            SendMsg("All Doors are Unlocked!");
+            UnlockDoor();
+        }
+        else {
+            SendMsg("All Doors are Locked!");
+            LockDoor();
+        }
+    }
+}
+
+Exec Function LockDoor() {
+    local OLDoor Door;
+
+    Foreach AllActors(Class'OLDoor', Door) {
+        Door.bLocked = true;
+    }
+}
+
+Exec Function UnlockDoor() {
+    local OLDoor Door;
+
+    Foreach AllActors(Class'OLDoor', Door) {
+        Door.bLocked = false;
+        Door.bBlocked = false;
+    }
+}
+
+Exec Function Rand100PlayerPos() {
+    TeleportPlayer(RandRange(-100, 100), RandRange(-100, 100), RandRange(-100, 100));
 }
 
 Exec Function BaseSelf() {
     local Actor A;
     local Vector C;
     local Float G, X, O;
-    local StaticMeshActor D;
 
     C = PickerHero(Pawn).Location;
     Foreach AllActors(Class'Actor', A) {
-    if(A != PickerHero(Pawn)) {
-    G = RandRange(-100, 100);
-    X = RandRange(-100, 100);
-    O = RandRange(-100, 100);
-    C.X += G;
-    C.Y += X;
-    C.Z += O;
-    A.SetLocation(C);
-    A.SetBase(self, C);
-    }
+        if(A != PickerHero(Pawn)) {
+            G = RandRange(-100, 100);
+            X = RandRange(-100, 100);
+            O = RandRange(-100, 100);
+            C.X += G; C.Y += X; C.Z += O;
+            A.SetLocation(C); A.SetBase(Self, C);
+        }
     }
 }
 
-Exec Function ToggleKillEnemy(optional bool Force=false) {
-    BoolKillEnemy=!BoolKillEnemy;
-
-    if(BoolKillEnemy==false) {if(ForceKillEnemy==true) {WorldInfo.Game.ClearTimer('KillEnemy'); ClientMessage("Force Delete Enemies: Disabled!"); ForceKillEnemy=false;} return;}
-    if(Force) {ForceKillEnemy=true; ClientMessage("Force Delete Enemies: Enabled!");}
-    KillEnemy();
-}
-
-Exec Function Limp() {if(PickerHero(Pawn).bLimping) {PickerHero(Pawn).bLimping=false; return;} else {PickerHero(Pawn).bLimping=true;}}
-    /*GlobalAnimRate();
-    SpawnCamera();
-    C = RandRange(1, 100);
-    if(C >= 80) {ClientMessage("Toggle Camera!"); ToggleCamcorder();}
-    else {ClientMessage("Reload!"); PressedReloadBatteries();}
-    WorldInfo.Game.SetTimer(2, false, 'Limp', Self);*/
-
-Exec Function Hobble(float Intensity=0) {if(PickerHero(Pawn).bHobbling) {PickerHero(Pawn).bHobbling=false; return;} else {PickerHero(Pawn).bHobbling=true; PickerHero(Pawn).HobblingIntensity=Intensity;}}
-Exec Function CameraBone(Name BoneName) {PickerHero(Pawn).Camera.CameraBoneName=BoneName;}
-Exec Function Darkness() {local OLDarknessVolume Darks; bDark=!bDark; Foreach AllActors(Class'OLDarknessVolume', Darks) {Darks.bDark=!bDark;}}
-Exec Function CountCSA(optional int Count=1) {local OLCSA CSA; Foreach AllActors(Class'OLCSA', CSA) {CSA.MaxTriggerCount=Count;}}
-Exec Function PRate(float Rate) {PickerHero(Pawn).Mesh.GlobalAnimRateScale=Rate;}
-Exec Function SME(ESpecialMoveType Num) {local OLBot Bot; Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {Bot.EnemyPawn.StartSpecialMove(Num);}}
-Exec Function SMP(ESpecialMoveType Num) {PickerHero(Pawn).StartSpecialMove(Num);}
-//Exec Function ToggleSMPRandom() {SMRandomState=!SMRandomState; SMPRandom();}
-/*Exec Function SMPRandom() {local int D;
-local OLPawn OLPawn;
-local ESpecialMoveType Num;
-if(SMRandomState) {D=RandRange(0, 70); 
-//Num=OLPawn.SpecialMove $ D;
-PickerHero(Pawn).StartSpecialMove(Num); WorldInfo.Game.SetTimer(0.000001, false, 'SMPRandom', Self);}}*/
-Exec Function KillEnemy() {local OLEnemyPawn Enemy; Foreach AllActors(Class'OLEnemyPawn', Enemy) {Enemy.Destroy();} if(ForceKillEnemy==true) {WorldInfo.Game.SetTimer(0.5, false, 'KillEnemy', Self); return;} ClientMessage("All Enemies Deleted!");}
-Exec Function Batt(int Bat=1) {NumBatteries += Bat; if(Bat > 0) {ClientMessage("Add Battery: " $ Bat $ "!");} else if(Bat < 0) {ClientMessage("Remove Battery: " $ Bat $ "!");} else {ClientMessage("Nothing Happened!");}}
-Exec Function ToggleFreecam() {if (UsingFirstPersonCamera()) {ConsoleCommand("Camera Freecam"); FreecamState=true;} else {ConsoleCommand("Camera Default"); FreecamState=false;}}
-Exec Function ToggleAIDebug() {AIDebug=!AIDebug; if(!AIDebug) {Super.ConsoleCommand("Showdebug");} else {Super.ConsoleCommand("Showdebug OLAI");}}
-Exec Function Pylons() {local Pylon P; Foreach AllActors(Class'Pylon', P) {`log(P);}}
-Exec Function Screamer(float scrm=1) {SetVolume(scrm);}
-Exec Function Reload() {local OLEngine Engine; Engine=OLEngine(class'Engine'.static.GetEngine()); PlayerDied(); Engine.StartCurrentCheckpoint();}
-Exec Function AVolume(float vol=1) {SetVolume(vol); ProfileSettings.GetProfileSettingValueFloat(57, PickerHud(HUD).AudioVolume);}
-Exec Function Glasss(optional bool dd=false) {
-    FXManager.CurrentUberPostEffect.CameraGlassDiffuse=Texture2D'PickerDebugMenu.Overlays.BrokenGlassDiffuse';
-    FXManager.CurrentUberPostEffect.CameraGlassNormal=Texture2D'PickerDebugMenu.Overlays.BrokenGlassNormal';
-    if(dd) {
-        FXManager.CurrentUberPostEffect.CameraGlassDiffuse=Texture2D'Asylum_post_process.ShatterredGlass.BrokenCamera_D';
-        FXManager.CurrentUberPostEffect.CameraGlassNormal=Texture2D'Asylum_post_process.ShatterredGlass.BrokenCamera_N';
+Exec Function Limp() {
+    if(PickerHero(Pawn).bLimping) {
+        PickerHero(Pawn).bLimping = false;
+    }
+    else {
+        PickerHero(Pawn).bLimping = true;
     }
 }
 
-Exec Function DisWater() {if(PickerHero(Pawn).DisableWater==false) {PickerHero(Pawn).DisableWater=true;} else {PickerHero(Pawn).DisableWater=false;}}
+Exec Function SpawnBF(Bool bLeftFoot=false, Float Alpha=1, optional Bool CustomStep, optional MaterialInstanceConstant L, optional MaterialInstanceConstant R) {
+    PickerHero(Pawn).SpawnBloodFootStepDecal(bLeftFoot, Alpha, CustomStep, L, R);
+}
 
-Exec Function GameSpeed(float Speed=1) {
+Exec Function Hobble(Float Intensity=0) {
+    if(PickerHero(Pawn).bHobbling) {
+        PickerHero(Pawn).bHobbling = false;
+    }
+    else {
+        PickerHero(Pawn).bHobbling = true;
+        PickerHero(Pawn).TargetHobblingIntensity = Intensity;
+    }
+}
+
+Exec Function SpecialMoveEnemy(ESpecialMoveType SpecialMove) {
+    local OLBot Bot;
+
+    Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+        Bot.EnemyPawn.StartSpecialMove(SpecialMove);
+    }
+}
+
+Exec Function SpecialMovePlayer(ESpecialMoveType SpecialMove) {
+    PickerHero(Pawn).StartSpecialMove(SpecialMove);
+}
+
+Exec Function CameraBone(Name BoneName) {
+    PickerHero(Pawn).Camera.CameraBoneName = BoneName;
+}
+
+Exec Function Darkness() {
+    local OLDarknessVolume Darks;
+
+    bDark=!bDark;
+    Foreach AllActors(Class'OLDarknessVolume', Darks) {
+        Darks.bDark=!bDark;
+    }
+}
+
+Exec Function CountCSA(Int Count=1) {
+    local OLCSA CSA;
+
+    Foreach AllActors(Class'OLCSA', CSA) {
+        CSA.MaxTriggerCount=Count;
+    }
+}
+
+Exec Function PlayerAnimRate(Float Rate=1) {
+    PickerHero(Pawn).Mesh.GlobalAnimRateScale=Rate;
+    fPlayerAnimRate = Rate;
+}
+
+Exec Function EnemyAnimRate(Float Rate=1) {
+    local OLEnemyPawn Enemy;
+
+    Foreach WorldInfo.AllPawns(Class'OLEnemyPawn', Enemy) {
+        Enemy.Mesh.GlobalAnimRateScale=Rate;
+        fEnemyAnimRate = Rate; 
+    }
+}
+
+Exec Function ToggleKillEnemy(Bool Force=PickerHud(HUD).bForceFuncs) {
+    if(RandomizerState) {
+        Reload();
+        return;
+    }
+    else if(InsanePlusState) {
+        DS(9999);
+        return;
+    }
+    if(Force) {
+        if(WorldInfo.Game.IsTimerActive('KillEnemy', Self)) {
+            WorldInfo.Game.ClearTimer('KillEnemy', Self);
+            SendMsg("Stop: All Enemies are Deleted");
+        }
+        else {
+            WorldInfo.Game.SetTimer(0.01, true, 'KillEnemy', Self);
+            SendMsg("Force: All Enemies are Deleted");
+        }
+    }
+    else {
+        WorldInfo.Game.ClearTimer('KillEnemy', Self);
+        KillEnemy();
+        SendMsg("All Enemies are Deleted!");
+    }
+}
+
+Exec Function KillEnemy() {
+    local OLEnemyPawn Enemy;
+
+    Foreach AllActors(Class'OLEnemyPawn', Enemy) {
+        Enemy.Destroy();
+    }
+}
+
+Exec Function ChangeBatteries(Int Increase=1) {
+    if(CheatManager.bUnlimitedBatteries) {
+        SendMsg("Unavailable with Unlimited Batteries!");
+    }
+    NumBatteries += Increase;
+    if(Increase > 0) {
+        PickerHero(Pawn).PlayAkEvent(AkEvent'Player_Sound.Pick_Up_Battery');
+        SendMsg("Add Battery:" @ Increase @ "Total:" @ NumBatteries);
+    }
+    else if(Increase < 0) {
+        SendMsg("Remove Battery:" @ Increase @ "Total:" @ NumBatteries);
+    }
+    else {
+        SendMsg("Nothing Happened!");
+    }
+}
+
+Exec Function ToggleFreecam() {
+    if(bDebugFullyGhost) {
+        SendMsg("Unavailable in Ghost!");
+        return;
+    }
+    else if(RandomizerState) {
+        Reload();
+        return;
+    }
+    else if(InsanePlusState) {
+        DS(9999);
+        return;
+    }
+    if(UsingFirstPersonCamera()) {
+        ConsoleCommand("Camera Freecam");
+    }
+    else {
+        ConsoleCommand("Camera Default");
+    }
+}
+
+Exec Function ToggleAIDebug() {
+    AIDebug=!AIDebug;
+    if(AIDebug) {
+        Super.ConsoleCommand("Showdebug OLAI");
+    }
+    else {
+        Super.ConsoleCommand("Showdebug");
+    }
+}
+
+Exec Function Reload() {
+    local OLEngine Engine;
+
+    Engine = OLEngine(Class'Engine'.static.GetEngine());
+    PickerHero(Pawn).RespawnHero();
+}
+
+Exec Function PlayAkEvent(AkEvent Event) {
+    PickerHero(Pawn).PlayAkEvent(Event);
+}
+
+Exec Function SetGameSpeed(Float Speed=1) {
     WorldInfo.Game.SetGameSpeed(Speed);
 }
 
-Exec Function Superman()
-{
-    bDebugGhost=!bDebugGhost; NoclipState=!NoclipState;
-    if(bDebugGhost) {PickerHero(Pawn).GodModeInNoclip=true; ClientMessage("Noclip ON!");}
-    else {PickerHero(Pawn).GodModeInNoclip=false; ClientMessage("Noclip OFF!");}
-   // OLCheatManager.GhostPawn(bDebugGhost);
+Exec Function ToggleNoclip() {
+    if(bDebugFullyGhost) {
+        SendMsg("Unavailable in Ghost!");
+        return;
+    }
+    else if(RandomizerState) {
+        Reload();
+        return;
+    }
+    else if(InsanePlusState) {
+        DS(9999);
+        return;
+    }
+    bDebugGhost=!bDebugGhost;
+    if(bDebugGhost) {
+        PickerHero(Pawn).bNoclip = true;
+        SendMsg("Noclip ON!", 1.5);
+    }
+    else {
+        PickerHero(Pawn).bNoclip = false;
+        SendMsg("Noclip OFF!", 1.5);
+    }
 }
 
-Exec Function Bigg(optional float dd=2) {
-    local Actor A;
-    local Vector D;
-    D.X=dd;
-    D.Y=dd;
-    D.Z=dd;
-Foreach AllActors(Class'Actor', A) {
-    A.SetDrawScale3D(D);
-    PickerHero(Pawn).SetDrawScale3D(vect(1,1,1));
-}
+Exec Function ToggleGhost() {
+    if(PickerHero(Pawn).Health == 0) {
+        SendMsg("Unavailable from Afterworld!");
+        return;
+    }
+    else if(RandomizerState) {
+        Reload();
+        return;
+    }
+    else if(InsanePlusState) {
+        DS(9999);
+        return;
+    }
+    bDebugFullyGhost=!bDebugFullyGhost;
+    if(bDebugFullyGhost) {
+        PickerHero(Pawn).bNoclip = true;
+        bDebugGhost = true;
+        ConsoleCommand("Camera Freecam");
+        SendMsg("Ghost ON!", 1.5);
+    }
+    else {
+        PickerHero(Pawn).bNoclip = false;
+        bDebugGhost = false;
+        ConsoleCommand("Camera Default");
+        PickerHero(Pawn).ResetAfterTeleport();
+        SendMsg("Ghost OFF!", 1.5);
+    }
+    CheatManager.GhostPawn(bDebugFullyGhost);
 }
 
-Exec Function SpawnEnemy(String CEnemy, optional Int Count=1) {
+Exec Function PlayPlayerAnim(Name Anim) {
+    StopPlayerAnim();
+    PickerHero(Pawn).FullBodyAnimSlot.PlayCustomAnim(Anim, 1);
+    PickerHero(Pawn).LocomotionMode = LM_Cinematic;
+    PickerHero(Pawn).SetPhysics(PHYS_Custom);
+    WorldInfo.Game.SetTimer(PickerHero(Pawn).FullBodyAnimSlot.GetCustomAnimNodeSeq().AnimSeq.SequenceLength, false, 'StopPlayerAnim', Self);
+}
+
+Exec Function StopPlayerAnim() {
+    PickerHero(Pawn).FullBodyAnimSlot.StopCustomAnim(0);
+    PickerHero(Pawn).LocomotionMode = LM_Walk;
+    PickerHero(Pawn).SetPhysics(PHYS_Walking);
+}
+
+Exec Function CPList() {
+    CheatManager.CPList();
+}
+
+Exec Function GiveItem(String ItemName) {
+    Switch(ItemName) {
+        case "Keycard":
+            break;
+        case "SparkPlug":
+            break;
+        case "KeycardShower":
+            break;
+        case "ElevatorKey":
+            break;
+        case "ShedKeycard":
+            break;
+        case "Keystairs":
+            break;
+        case "Fuse1":
+            break;
+        case "Fuse2":
+            break;
+        case "Fuse3":
+            break;
+        case "KeycardRH":
+            break;
+        case "KeyToLab":
+            break;
+        case "Keycard_Lab":
+            break;
+        case "HandcuffKey":
+            break;
+        case "KeyMale":
+            break;
+        Default:
+            SendMsg("Wrong Item Name!");
+            return;
+            break;
+    }
+    PlayAkEvent(AkEvent'Player_Sound.Pick_Up_Object');
+    SendMsg("Added Item:" @ Localize("GameplayItems", ItemName, "OLGame"));
+    CheatManager.GiveItem(ItemName);
+}
+
+Exec Function BadFPS(optional Float SlowDown) {
+    CheatManager.BadFPS(SlowDown);
+}
+
+Exec Function ApplyCP(String Checkpoint) {
+    CheatManager.ApplyCP(Checkpoint);
+}
+
+Exec Function SaveGame(String FileName) {
+    CheatManager.SaveGame(FileName);
+}
+
+Exec Function LoadGame(String FileName) {
+    CheatManager.LoadGame(FileName);
+}
+
+Exec Function ResetDoors() {
+    CheatManager.ResetDoors();
+}
+
+Exec Function ResetPushs() {
+    CheatManager.ResetPushables();
+}
+
+Exec Function ResetWorld() {
+    CheatManager.ResetWorldState();
+}
+
+Exec Function SetLang(String LangCode) {
+    CheatManager.SetLanguage(LangCode);
+}
+
+Exec Function ReloadWwise(Bool bDLC) {
+    CheatManager.ReloadSoundBanks(bDLC);
+}
+
+Exec Function DumpGS() {
+    CheatManager.DumpGS();
+}
+
+Exec Function SetGS(Name GSName) {
+    CheatManager.ActivateGS(GSName);
+}
+
+Exec Function ResetGS() {
+    CheatManager.ResetGS();
+}
+
+Exec Function ToggleUnlimitedBatteries() {
+    CheatManager.bUnlimitedBatteries = !CheatManager.bUnlimitedBatteries;
+    if(CheatManager.bUnlimitedBatteries) {
+        WorldInfo.Game.SetTimer(0.001, true, 'UnlimitedBatteries', Self);
+        SendMsg("Batteries are unlimited!");
+    }
+    else {
+        WorldInfo.Game.ClearTimer('UnlimitedBatteries', Self);
+        PickerHero(Pawn).BatteryDuration = 150;
+        PickerHero(Pawn).CurrentBatterySetEnergy = 1;
+        UpdateDifficultyBasedValues();
+        SendMsg("Batteries are limited!");
+    }
+}
+
+Function UnlimitedBatteries() {
+    PickerHero(Pawn).BatteryDuration = 99999999;
+    PickerHero(Pawn).CurrentBatterySetEnergy = 99999999;
+    NumBatteries = 99999999;
+    MaxNumBatteries = 99999999;
+}
+
+Exec Function SingleFrame(Bool Cancel=false) {
+    if(!Cancel) {
+        CheatManager.SingleFrame();
+    }
+    else {
+        SetPause(false);
+    }
+}
+
+Exec Function DeleteAllSaves() {
+    CheatManager.DeleteAllSaves();
+}
+
+Exec Function SaveAllSaves() {
+    CheatManager.SaveAllCheckpoints();
+}
+
+Exec Function DebugGameplay() {
+    CheatManager.DebugGameplay();
+}
+
+Exec Function SpawnEnemy(String CEnemy, Int Count=1, EWeapon WeaponToUse=Weapon_None, Bool ShouldAttack=true) {
     local Vector C;
-    local Int i;
+    local Int I;
     local Rotator Rot;
+    local Bool AllEnemies;
+    local SkeletalMesh PatientMesh;
     local OLBot Bot;
     local OLEnemyPawn Enemy;
     local OLEnemySoldier Soldier;
     local OLEnemyGroom Groom;
-    local OLEnemyGenericPatient_G Patient;
-    local OLEnemySurgeon Surgeon, Surgeon1;
+    local OLEnemyGenericPatient Patient;
+    local OLEnemySurgeon Surgeon;
     local OLEnemyCannibal Cannibal;
-    local OLEnemyPriest Priest;
+    local OLEnemyGenericPatient Priest;
     local OLEnemyNanoCloud NanoCloud;
-    local array<AnimSet> AnimSets;
+    local Actor CollidingActor;
 
-    GetPlayerViewPoint(C,Rot);
-    PickerHero(Pawn).SetCollision(false, false);
+    GetPlayerViewPoint(C, Rot);
+    PickerHero(Pawn).SetCollision(false, false, false);
+    if(Count == 0) {
+        Count=1;
+    }
+    else if(Count < 0) {
+        Count=Count-(Count*2);
+    }
+    if(CEnemy ~= "All") {
+        AllEnemies = true;
+    }
     Foreach AllActors(Class'OLEnemyPawn', Enemy) {
-    Enemy.SetCollision(false, false);
+        Enemy.SetCollision(false, false, false);
     }
-    while(i < Count) {
-    if(CEnemy ~= "Soldier") {
-        Soldier = Spawn(Class'OLEnemySoldier',,,C, Rot);
-        Foreach WorldInfo.AllPawns(Class'OLEnemySoldier', Soldier) {
-            Soldier.SetCollision(false, false, false);
-            Bot = Spawn(Class'OLBot');
-            Bot.Possess(Soldier, false);
-            Bot.EnemyPawn.Modifiers.bShouldAttack=true;
-            //Bot.EnemyPawn.Modifiers.bUseKillingBlow=true;
-            //Bot.EnemyPawn.Modifiers.bAttackOnProximity=true;
-            WorldInfo.Game.SetTimer(0.07, false, 'BackPawnCol', self);
+    While(I < Count) {
+        Switch(CEnemy) {
+            case "Soldier":
+                Soldier = Spawn(Class'OLEnemySoldier',,,C, Rot,,true);
+                Soldier.SetCollision(false, false, false);
+                Soldier.Modifiers.bShouldAttack = ShouldAttack;
+                Soldier.Modifiers.bUseForMusic = true;
+                Soldier.Modifiers.WeaponToUse = WeaponToUse;
+                Soldier.ApplyModifiers(Soldier.Modifiers);
+                Bot = Spawn(Class'OLBot');
+                Bot.Possess(Soldier, false);
+                break;
+            case "Groom":
+                Groom = Spawn(Class'OLEnemyGroom',,,C, Rot,,true);
+                Groom.SetCollision(false, false, false);
+                Groom.Modifiers.bShouldAttack = ShouldAttack;
+                Groom.Modifiers.bUseForMusic = true;
+                Groom.Modifiers.WeaponToUse = WeaponToUse;
+                Groom.ApplyModifiers(Groom.Modifiers);
+                Groom.Mesh.SetSkeletalMesh(SkeletalMesh'DLC_Build2Exterior-01_LD.02_Groom.Groom_Shirt');
+                Bot = Spawn(Class'OLBot');
+                Bot.Possess(Groom, false);
+                break;
+            case "Surgeon":
+                Surgeon = Spawn(Class'OLEnemySurgeon',,,C, Rot,,true);
+                Surgeon.SetCollision(false, false, false);
+                Surgeon.Mesh.SetSkeletalMesh(SkeletalMesh'Male_ward_SE.02_Surgeon.Mesh.Surgeon');
+                Surgeon.Modifiers.bShouldAttack = ShouldAttack;
+                Surgeon.Modifiers.bUseForMusic = true;
+                Surgeon.Modifiers.WeaponToUse = WeaponToUse;
+                Surgeon.ApplyModifiers(Surgeon.Modifiers);
+                Surgeon.BehaviorTree = OLBTBehaviorTree'Male_ward_03_LD.02_AI_Behaviors.Surgeon_FullLoop_BT';
+                //Surgeon.VOAsset = OLAIContextualVOAsset'Male_ward_03_LD.02_AI_Behaviors.Surgeon';
+                Bot = Spawn(Class'OLBot');
+                Bot.Possess(Surgeon, false);
+                break;
+            case "Cannibal":
+                Cannibal = Spawn(Class'OLEnemyCannibal',,,C, Rot,,true);
+                Cannibal.SetCollision(false, false, false);
+                Cannibal.Modifiers.bShouldAttack = ShouldAttack;
+                Cannibal.Modifiers.bUseForMusic = true;
+                Cannibal.Modifiers.WeaponToUse = WeaponToUse;
+                Cannibal.ApplyModifiers(Cannibal.Modifiers);
+                Cannibal.BehaviorTree = OLBTBehaviorTree'Male_ward_03_LD.02_AI_Behaviors.Surgeon_FullLoop_BT';
+                //Cannibal.VOAsset = OLAIContextualVOAsset'Prison_01-LD.02_AI_Behaviors.ManicYell';
+                Bot = Spawn(Class'OLBot');
+                Bot.Possess(Cannibal, false);
+                break;
+            case "Priest":
+                Priest = Spawn(Class'OLEnemyGenericPatient',,,C, Rot,,true);
+                Priest.SetCollision(false, false, false);
+                Priest.Mesh.SetSkeletalMesh(SkeletalMesh'02_Priest.Pawn.Priest-01');
+                Priest.Modifiers.bShouldAttack = ShouldAttack;
+                Priest.Modifiers.bUseForMusic = true;
+                Priest.Modifiers.WeaponToUse = WeaponToUse;
+                Priest.ApplyModifiers(Priest.Modifiers);
+                Priest.BehaviorTree = OLBTBehaviorTree'Male_ward_LD.02_AI_Behaviors.Generic_FullLoop_BT';
+                Bot = Spawn(Class'OLBot');
+                Bot.Possess(Priest, false);
+                break;
+            case "NanoCloud":
+                NanoCloud = Spawn(Class'OLEnemyNanoCloud',,,C, Rot,,true);
+                NanoCloud.SetCollision(false, false, false);
+                NanoCloud.Modifiers.bShouldAttack = ShouldAttack;
+                NanoCloud.Modifiers.bUseForMusic = true;
+                NanoCloud.Modifiers.WeaponToUse = WeaponToUse;
+                NanoCloud.ApplyModifiers(NanoCloud.Modifiers);
+                Bot = Spawn(Class'OLBot');
+                Bot.Possess(NanoCloud, false);
+                break;
+            Default:
+                if(Left(CEnemy, 7) ~= "Patient") {
+                    Switch(GetRightMost(CEnemy)) {
+                        case "Dupont":
+                            PatientMesh = SkeletalMesh'Prison_01-LD.Duponts.Mesh.Dupont';
+                            break;
+                        case "Dupont2":
+                            PatientMesh = SkeletalMesh'Prison_01-LD.Duponts.Mesh.Dupont_2';
+                            break;
+                        case "Guard":
+                            PatientMesh = SkeletalMesh'DLC_PrisonFloor2-01_LD.02_Scientist_DLC.Guard_alive';
+                            break;
+                        case "GuardBloody":
+                            PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Worker.Mesh.Guard';
+                            break;
+                        case "RapeVictim":
+                            PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient_2nd_package.Mesh.Rape_victim';
+                            break;
+                        case "SimpleBloodyHead":
+                            PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient_2nd_package.Mesh.Patient_19_wound';
+                            break;
+                        case "StraitJacketMutHead":
+                            PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_8';
+                            break;
+                        case "Simple2MutArms":
+                            PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_7';
+                            break;
+                        case "Simple2OneEye":
+                            PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_6';
+                            break;
+                        case "StraitJacketNoEyes":
+                            PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_4';
+                            break;
+                        case "NudeMutHead2Arm":
+                            PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_3';
+                            break;
+                        case "SimplePuffyNoPants":
+                            PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_21';
+                            break;
+                        case "SimpleBlind":
+                            PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_2';
+                            break;
+                        case "SimpleNormal":
+                            PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_19';
+                            break;
+                        case "SimplePuffy":
+                            PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_18';
+                            break;
+                        case "SimpleOneEye":
+                            PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_17';
+                            break;
+                        case "Simple2PuffyJeans":
+                            PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_16';
+                            break;
+                        case "Simple2MutHead":
+                            PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_12';
+                            break;
+                        case "Simple2MutHeadArms":
+                            PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_1';
+                            break;
+                        case "SimplePuffyMutArm":
+                            PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_11';
+                            break;
+                        case "Simple2MutArmsNoEyes":
+                            PatientMesh = SkeletalMesh'FemaleWard_Floor1-LD.02_Generic_Patient.Meshes.Patient_14';
+                            break;
+                        case "SimpleWeird":
+                            PatientMesh = SkeletalMesh'FemaleWard_Floor2-LD.02_Generic_Patient.Meshes.Patient_15';
+                            break;
+                        case "Simple2Mouth":
+                            PatientMesh = SkeletalMesh'Male_ward_03a-SE.02_Generic_Patient.Meshes.Patient_5';
+                            break;
+                        case "WorkerBloody":
+                            PatientMesh = SkeletalMesh'Male_ward_LD.02_Generic_Worker.Mesh.Worker_01';
+                            break;
+                        case "StraitJacketBlind":
+                            PatientMesh = SkeletalMesh'Sewers_LD.02_Generic_Patient.Meshes.Patient_9';
+                            break;
+                        case "PriestBurned":
+                            PatientMesh = SkeletalMesh'Center_block_03-LD.02_Priest.Pawn.Priest-burned';
+                            break;
+                        case "WorkerBloody2":
+                            PatientMesh = SkeletalMesh'Center_block_sript_Revisit.02_Generic_Worker.Mesh.worker_4';
+                            break;
+                        case "WorkerBloody3":
+                            PatientMesh = SkeletalMesh'Center_block_sript.02_Generic_Worker.Mesh.worker_3';
+                            break;
+                        case "PyroManic":
+                            PatientMesh = SkeletalMesh'Male_ward_Cafeteria_fire.02_Generic_Patient_2nd_package.Mesh.pyro_dialogue';
+                            break;
+                        case "Blair":
+                            PatientMesh = SkeletalMesh'DLC_PrisonFloor2-01_SE.02_Blair.Blair';
+                            break;
+                        case "BlairExplode":
+                            PatientMesh = SkeletalMesh'DLC_AdmFloor1-01_SE.02_Blair.Blair_exploded';
+                            break;
+                        case "NudeMouth":
+                            PatientMesh = SkeletalMesh'DLC_PrisonFloor2-01_SE.02_Generic_Patient.Meshes.Patient_13';
+                            break;
+                        case "StraitJacketMouth":
+                            PatientMesh = SkeletalMesh'DLC_PrisonCourtYard-01_LD.02_Generic_Patient_DLC.Meshes.Patient_10';
+                            break;
+                        case "Swat":
+                            PatientMesh = SkeletalMesh'DLC_MaleFloor2-01_SE.02_Swat.Mesh.Swat_v3';
+                            break;
+                        case "SwatMouth":
+                            PatientMesh = SkeletalMesh'DLC_MaleFloor2-01_SE.02_Swat.Mesh.Swat_v2';
+                            break;
+                        case "SwatEyes":
+                            PatientMesh = SkeletalMesh'DLC_MaleFloor2-01_SE.02_Swat.Mesh.Swat_v1';
+                            break;
+                        case "Licker":
+                            PatientMesh = SkeletalMesh'DLC_Lab-01_SE.02_Scientist_DLC.Scientist_Licker';
+                            break;
+                        case "Masked":
+                            PatientMesh = SkeletalMesh'DLC_Lab-01_SE.02_Scientist_DLC.masked_scientist';
+                            break;
+                        case "Hazmat":
+                            PatientMesh = SkeletalMesh'DLC_Lab-01_SE.02_Scientist_DLC.hazmat_scientist';
+                            break;
+                        case "Scientist":
+                            PatientMesh = SkeletalMesh'DLC_Build1Floor2-01_SE.02_Scientist_DLC.Mesh.Scientist';
+                            break;
+                        case "Worker":
+                            PatientMesh = SkeletalMesh'DLC_Lab-01_SE.02_Generic_Worker_DLC.worker_4';
+                            break;
+                        case "Worker2":
+                            PatientMesh = SkeletalMesh'DLC_Build2Attic-01_LD.02_Generic_Worker.Mesh.Worker_02';
+                            break;
+                        case "SimpleMutHead2":
+                            PatientMesh = SkeletalMesh'DLC_Build2Floor3-01_LD.02_Generic_Patient_DLC.Meshes.Patient_20';
+                            break;
+                        case "Scientist2":
+                            PatientMesh = SkeletalMesh'DLC_Build1Floor1-01_SE.02_Scientist_DLC.Mesh.Scientist_03';
+                            break;
+                        case "Scientist3":
+                            PatientMesh = SkeletalMesh'DLC_Build1Floor1-01_SE.02_Scientist_DLC.Mesh.Scientist_02';
+                            break;
+                        case "WorkerBloodyHeadless":
+                            PatientMesh = SkeletalMesh'DLC_Build1Floor1-01_SE.02_Generic_Worker.Mesh.Worker_01_headless';
+                            break;
+                        Default:
+                            SendMsg("Wrong Patient Name!");
+                            return;
+                            break;
+                    }
+                    Patient = Spawn(Class'OLEnemyGenericPatient',,,C, Rot,,true);
+                    Patient.SetCollision(false, false, false);
+                    Patient.Mesh.SetSkeletalMesh(PatientMesh);
+                    Patient.Modifiers.bShouldAttack = ShouldAttack;
+                    Patient.Modifiers.bUseForMusic = true;
+                    Patient.Modifiers.WeaponToUse = WeaponToUse;
+                    Patient.ApplyModifiers(Patient.Modifiers);
+                    Patient.BehaviorTree = OLBTBehaviorTree'Male_ward_LD.02_AI_Behaviors.Generic_FullLoop_BT';
+                    Bot = Spawn(Class'OLBot');
+                    Bot.Possess(Patient, false);
+                }
+                else {
+                    SendMsg("Wrong Enemy Name!");
+                    return;
+                }
+                break;
         }
+    i += 1;
     }
-    
-    if(CEnemy ~= "Groom") {
-        Groom = Spawn(Class'OLEnemyGroom',,,C, Rot);
-        Foreach WorldInfo.AllPawns(Class'OLEnemyGroom', Groom) {
-            Bot = Spawn(Class'OLBot');
-            Bot.Possess(Groom, false);
-            Bot.EnemyPawn.Modifiers.bShouldAttack=true;
-            Groom.SetCollision(false, false, false);
-            WorldInfo.Game.SetTimer(0.07, false, 'BackPawnCol', self);
-        }
-    }
-
-    if(CEnemy ~= "Patient") {
-        Patient = Spawn(Class'OLEnemyGenericPatient_G',,,C, Rot);
-        Foreach WorldInfo.AllPawns(Class'OLEnemyGenericPatient_G', Patient) {
-            Bot = Spawn(Class'OLBot');
-            Bot.Possess(Patient, false);
-            Bot.EnemyPawn.Modifiers.bShouldAttack=true;
-            Patient.BehaviorTree=OLBTBehaviorTree'Male_ward_LD.02_AI_Behaviors.Generic_FullLoop_BT';
-            Patient.SetCollision(false, false, false);
-            WorldInfo.Game.SetTimer(0.07, false, 'BackPawnCol', self);
-        }
-    }
-        
-    if(CEnemy ~= "Surgeon") {
-        Surgeon1 = Spawn(Class'OLEnemySurgeon',,,C, Rot);
-       // Surgeon1.VOAsset=OLAIContextualVOAsset'Male_ward_03_LD.02_AI_Behaviors.Surgeon';
-        Foreach WorldInfo.AllPawns(Class'OLEnemySurgeon', Surgeon) {
-            Bot = Spawn(Class'OLBot');
-       // Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
-            Bot.Possess(Surgeon1, false);
-            Surgeon.Modifiers.bShouldAttack=true;
-            Surgeon.Modifiers.bUseForMusic=true;
-            //Bot.EnemyPawn.
-           // Bot.EnemyPawn.Modifiers.bUseKillingBlow=true;
-           // Bot.EnemyPawn.Modifiers.bAttackOnProximity=true;
-            //Bot.EnemyPawn.Modifiers.bInterruptVOOnChase=false;
-            Surgeon.Modifiers.WeaponToUse=3;
-            //Surgeon.bUsingWeapon=true;
-            Surgeon.VOInstances.Length = 4;
-            Surgeon.VOInstances[0].EventsPlayed[0]=true;
-            Surgeon.VOInstances[0].EventsPlayed[1]=true;
-            Surgeon.VOInstances[0].NumUnplayedEvents=1;
-            Surgeon.VOInstances[0].EventsPlayed[2]=true;
-            Surgeon.VOInstances[0].EventsPlayed[3]=true;
-            Surgeon.VOInstances[1].EventsPlayed[0]=true;
-            Surgeon.VOInstances[1].EventsPlayed[1]=true;
-            Surgeon.VOInstances[1].NumUnplayedEvents=1;
-            Surgeon.VOInstances[1].EventsPlayed[2]=true;
-            Surgeon.VOInstances[1].EventsPlayed[3]=true;
-            Surgeon.VOInstances[2].EventsPlayed[0]=true;
-            Surgeon.VOInstances[2].EventsPlayed[1]=true;
-            Surgeon.VOInstances[2].NumUnplayedEvents=1;
-            Surgeon.VOInstances[2].EventsPlayed[2]=true;
-            Surgeon.VOInstances[2].EventsPlayed[3]=true;
-            Surgeon.VOInstances[3].EventsPlayed[0]=true;
-            Surgeon.VOInstances[3].EventsPlayed[1]=true;
-            Surgeon.VOInstances[3].NumUnplayedEvents=1;
-            Surgeon.VOInstances[3].EventsPlayed[2]=true;
-            Surgeon.VOInstances[3].EventsPlayed[3]=true;
-           // Surgeon.Mesh.SetSkeletalMesh(SkeletalMesh'Male_ward_SE.02_Surgeon.Mesh.Surgeon');
-            Surgeon.BehaviorTree=OLBTBehaviorTree'Male_ward_03_LD.02_AI_Behaviors.Surgeon_FullLoop_BT';
-           // Surgeon.VOAsset=OLAIContextualVOAsset'Male_ward_03_LD.02_AI_Behaviors.Surgeon';
-            Surgeon.SetCollision(false, false, false);
-            WorldInfo.Game.SetTimer(0.07, false, 'BackPawnCol', self);
-           // ConsoleCommand("Set OLenemysurgeon voasset Soldier");
-            //ConsoleCommand("Set OLenemysurgeon behaviortree Soldier_bt");
-        }//}
-    }
-        
-    if(CEnemy ~= "Cannibal") {
-        Cannibal = Spawn(Class'OLEnemyCannibal',,,C, Rot);
-       // Cannibal.VOAsset=OLAIContextualVOAsset'Prison_01-LD.02_AI_Behaviors.ManicYell';
-        Foreach AllActors(Class'OLEnemyCannibal', Cannibal) {
-           // Cannibal.VOAsset=OLAIContextualVOAsset'Male_ward_03_LD.02_AI_Behaviors.Surgeon';
-            Bot = Spawn(Class'OLBot');
-            Bot.Possess(Cannibal, false);
-            Bot.EnemyPawn.Modifiers.bShouldAttack=true;
-            Bot.EnemyPawn.Modifiers.WeaponToUse=Weapon_CannibalDrill;
-            Bot.EnemyPawn.bUsingWeapon=true;
-           // Bot.EnemyPawn.VOInstances=EventsPlayed(0)=true;
-           // Bot.EnemyPawn.VOInstances.EventsPlayed.AddItem(true);
-           // Bot.EnemyPawn.VOInstances.EventsPlayed=true;
-           // Bot.EnemyPawn.VOInstances.EventsPlayed=true;
-           // Bot.EnemyPawn.VOInstances.EventsPlayed[3]=true;
-           // Bot.EnemyPawn.VOAsset=OLAIContextualVOAsset'Male_ward_03_LD.02_AI_Behaviors.Surgeon';
-            Bot.EnemyPawn.BehaviorTree=OLBTBehaviorTree'Male_ward_03_LD.02_AI_Behaviors.Surgeon_FullLoop_BT';
-           // Cannibal.VOAsset=OLAIContextualVOAsset'Prison_01-LD.02_AI_Behaviors.ManicYell';
-            Cannibal.SetCollision(false, false, false);
-            WorldInfo.Game.SetTimer(0.07, false, 'BackPawnCol', self);
-        }
-    }
-        
-    if(CEnemy ~= "Priest") {
-        Priest = Spawn(Class'OLEnemyPriest',,,C, Rot);
-        Foreach WorldInfo.AllPawns(Class'OLEnemyPriest', Priest) {
-            Bot = Spawn(Class'OLBot');
-            Bot.Possess(Priest, false);
-            Bot.EnemyPawn.Modifiers.bShouldAttack=true;
-            Bot.EnemyPawn.Modifiers.bUseKillingBlow=true;
-            Bot.EnemyPawn.Modifiers.bAttackOnProximity=true;
-            Priest.BehaviorTree=OLBTBehaviorTree'Male_ward_LD.02_AI_Behaviors.Generic_FullLoop_BT';
-            Priest.SetCollision(false, false, false);
-            WorldInfo.Game.SetTimer(0.07, false, 'BackPawnCol', self);
-        }
-    }
-        
-    if(CEnemy ~= "NanoCloud") {
-        NanoCloud = Spawn(Class'OLEnemyNanoCloud',,,C, Rot);
-        Foreach WorldInfo.AllPawns(Class'OLEnemyNanoCloud', NanoCloud) {
-            Bot = Spawn(Class'OLBot');
-            Bot.Possess(NanoCloud, false);
-            Bot.EnemyPawn.Modifiers.bShouldAttack=true;
-            Bot.EnemyPawn.Modifiers.bUseKillingBlow=true;
-            Bot.EnemyPawn.Modifiers.bAttackOnProximity=true;
-            NanoCloud.SetCollision(false, false, false);
-            WorldInfo.Game.SetTimer(0.07, false, 'BackPawnCol', self);
-        }
-    }
-        i+=1;
-    }
-    WorldInfo.Game.SetTimer(0.07, false, 'BackPawnCol', self);
+    WorldInfo.Game.SetTimer(0.07, false, 'BackPawnCol', Self);
     PickerHero(Pawn).SetCollision(true, true);
 }
 
-Exec Function RotateEnemy(optional float Pitch=0, optional float Yaw=0, optional float Roll=0) {
+Exec Function RotateEnemy(Float Pitch=0, Float Yaw=0, Float Roll=0) {
     local OLBot Bot;
     local Rotator D;
 
@@ -1335,229 +2468,138 @@ Exec Function RotateEnemy(optional float Pitch=0, optional float Yaw=0, optional
     }
 }
 
-Exec Function ShowTrig(bool Hide) {
-    local TriggerVolume Trigger;
-
-    Foreach AllActors(Class'TriggerVolume', Trigger) {
-		Trigger.BrushComponent.SetHidden(Hide);
-		Trigger.SetHidden(Hide);
-	}
-}
-
-Exec Function ChangeGroom(optional string Model="") {
-    local OLEnemyGroom Enemy;
-    if(Model == "") {
-    if(GroomChrisState==false) {Foreach AllActors(Class'OLEnemyGroom', Enemy) {
-    Enemy.Mesh.SetSkeletalMesh(SkeletalMesh'PickerDebugMenu.ChrisMesh');
-    Enemy.Mesh.SetMaterial(0, MaterialInstanceConstant'02_Soldier.Material.Soldier_V3_ID1');
-    Enemy.Mesh.SetMaterial(1, MaterialInstanceConstant'02_Soldier.Material.Solider_V3_ID2');
-    Enemy.Mesh.SetMaterial(2, MaterialInstanceConstant'02_Soldier.Material.Solider_V3_ID3');
-    Enemy.Mesh.SetMaterial(3, MaterialInstanceConstant'02_Soldier.Material.Soldier_Eye');
-    GroomChrisState=true; return;
-    }} else {
-        Foreach AllActors(Class'OLEnemyGroom', Enemy) {
-        Enemy.Mesh.SetSkeletalMesh(Enemy.Default.Mesh.SkeletalMesh);
-        Enemy.Mesh.SetMaterial(0, MaterialInstanceConstant'02_Groom.ID_2_Shirt');
-        Enemy.Mesh.SetMaterial(1, MaterialInstanceConstant'02_Groom.ID_2_pants');
-        Enemy.Mesh.SetMaterial(2, MaterialInstanceConstant'02_Groom.ID_1_head_mutated');
-        Enemy.Mesh.SetMaterial(3, MaterialInstanceConstant'02_Groom.GroomEye_bloody');
-        Enemy.Mesh.SetMaterial(5, MaterialInstanceConstant'02_Groom.GroomEye_bloody2');
-        Enemy.Mesh.SetMaterial(6, MaterialInstanceConstant'02_Groom.hand_SSS');
-        GroomChrisState=false; return;
-    }}}
-    if(Model == "Chris") {ChangeChris(true);}
-    if(Model == "Blake") {ChangeBlake(true);}
-    if(Model == "Lady") {ChangeLady(true);}
-    return;
-}
-
-Exec Function SpawnChris() {
-    local Vector C;
-    local Rotator R;
-    local OLEnemySoldier Enemy;
-    GetPlayerViewPoint(C,R);
-    Spawn(Class'OLEnemySoldier', Self, '', C);
-}
-
-Exec Function KillerMake() {
-    local StaticMeshActor A;
-Foreach AllActors(Class'StaticMeshActor', A) {
-A.StaticMeshComponent.SetMaterial(0, MaterialInstanceConstant'chrisblake.mats.Top');
-A.StaticMeshComponent.SetMaterial(1, MaterialInstanceConstant'chrisblake.mats.Top');
-A.StaticMeshComponent.SetMaterial(2, MaterialInstanceConstant'chrisblake.mats.Top');
-A.StaticMeshComponent.SetMaterial(3, MaterialInstanceConstant'chrisblake.mats.Top');
-A.StaticMeshComponent.SetMaterial(4, MaterialInstanceConstant'chrisblake.mats.Top');
-A.StaticMeshComponent.SetMaterial(5, MaterialInstanceConstant'chrisblake.mats.Top');
-A.StaticMeshComponent.SetMaterial(6, MaterialInstanceConstant'chrisblake.mats.Top');
-`log(A);
-}
-}
-
-Exec Function ToggleChangeChris() {
-    local OLEnemySoldier Enemy;
-    local OLEnemyGroom Enemy2;
+Exec Function ChangeChrisModel(String Model, Bool ForGroom=false) {
+    local OLEnemySoldier Soldier;
+    local OLEnemyGroom Groom;
+    local SkeletalMesh Mesh;
     local OLBot Bot;
+
+    Switch(Model) {
+        case "Chris":
+            Mesh = SkeletalMesh'02_Soldier.Pawn.Soldier-03';
+            break;
+        case "Groom":
+            Mesh = SkeletalMesh'DLC_Build2Exterior-01_LD.02_Groom.Groom_Shirt';
+            break;
+        case "GroomLab":
+            Mesh = SkeletalMesh'02_Groom.Groom_Pre_mutation_1';
+            break;
+        case "Lady":
+            Mesh = SkeletalMesh'chrislady.Mesh.chrislady';
+            break;
+        case "Blake":
+            Mesh = SkeletalMesh'chrisblake.Mesh.chrisblakebr';
+            break;
+        case "Demo":
+            Mesh = SkeletalMesh'demochris.Mesh.chriswalker';
+            break;
+        Default:
+            SendMsg("Wrong Model Name!");
+            return;
+            break;
+    }
     Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
-    ChrisState=!ChrisState;
-    if(ChrisState) {Foreach AllActors(Class'OLEnemySoldier', Enemy) {ChangeChris(); return;}}
-    else {Foreach AllActors(Class'OLEnemySoldier', Enemy) {
-    Enemy.Mesh.SetSkeletalMesh(Enemy.Default.Mesh.SkeletalMesh); 
-    Enemy.Mesh.SetMaterial(0, MaterialInstanceConstant'02_Soldier.Material.Soldier_V3_ID1');
-    Enemy.Mesh.SetMaterial(1, MaterialInstanceConstant'02_Soldier.Material.Solider_V3_ID2');
-    Enemy.Mesh.SetMaterial(2, MaterialInstanceConstant'02_Soldier.Material.Solider_V3_ID3');
-    Enemy.Mesh.SetMaterial(3, MaterialInstanceConstant'02_Soldier.Material.Soldier_Eye');
-    ClientMessage("Demo Chris Deactivated!");} return;}
-    ClientMessage("Chris is missing!"); return;
-}
+        if(Bot.EnemyPawn.Class == Class'OLEnemySoldier' || Bot.EnemyPawn.Class == Class'OLEnemyGroom') {
+            if(ForGroom) {
+                Foreach WorldInfo.AllPawns(Class'OLEnemyGroom', Groom) {
+                    Groom.Mesh.SetSkeletalMesh(Mesh);
+                }
+                return;
+            }
+            else {
+                Foreach WorldInfo.AllPawns(Class'OLEnemySoldier', Soldier) {
+                    if(Soldier.Class != Class'OLEnemyGroom') {
+                        Soldier.Mesh.SetSkeletalMesh(Mesh);
+                    }
+                    return;
+                }
+            }
+        }
+    }
+    SendMsg("Chris/Eddie are Missing!");
 }
 
-Exec Function LoadMMap(Name LevelName) {ClientPrepareMapChange(LevelName, true, true); ClientCommitMapChange();}
-Exec Function ChangeBlake(optional bool Groom=false) {
+Exec Function SpawnDoor(EOLDoorMeshType MeshType) {
+    local Vector C;
+    local Rotator Rot;
+    local OLDoor Door;
+
+    Rot.Pitch = 0;
+    Rot.Yaw = Pawn.Rotation.Yaw;
+    Rot.Roll = 0;
+    C = Pawn.Location + (Normal(Vector(Pawn.Rotation)) * 100);
+    Door = Spawn(Class'OLDoor', Self,, C, Rot);
+    Door.DoorMeshType=MeshType;
+}
+
+Exec Function ScaleEnemy(Float X=1, Float Y=1, Float Z=1) {
+    local OLEnemyPawn Enemy;
+    local Vector NewScale;
+
+    NewScale.X = X;
+    NewScale.Y = Y;
+    NewScale.Z = Z;
+    Foreach AllActors(Class'OLEnemyPawn', Enemy) {
+        Enemy.Mesh.SetScale3D(NewScale);
+        vScaleEnemies = NewScale;
+    }
+}
+
+Exec Function ScalePlayer(Float X=1, Float Y=1, Float Z=1) {
+    local PickerHero Hero;
+    local Vector NewScale;
+
+    NewScale.X = X;
+    NewScale.Y = Y;
+    NewScale.Z = Z;
+    Hero = PickerHero(Pawn);
+    Foreach AllActors(Class'PickerHero', Hero) {
+        Hero.Mesh.SetScale3D(NewScale);
+        vScalePlayer = NewScale;
+    }
+}
+
+Exec Function ToggleBhop() {
+    bBhop = !bBhop;
+}
+
+Exec Function ToggleAutoBunnyHop() {
+    bAutoBunnyHop = !bAutoBunnyHop;
+}
+
+Exec Function ChangeLady(Bool Groom=false) {
     local OLEnemySoldier Enemy;
     local OLEnemyGroom Enemy2;
 
     if(Groom) {
-Foreach AllActors(Class'OLEnemyGroom', Enemy2) {
-Switch (Enemy.Class) {
-Default:
-Enemy2.Mesh.SetSkeletalMesh(SkeletalMesh'chrisblake.Mesh.chrisblakebr');
-Enemy2.Mesh.SetMaterial(0, MaterialInstanceConstant'chrisblake.mats.Skin');
-Enemy2.Mesh.SetMaterial(1, MaterialInstanceConstant'chrisblake.mats.Legs');
-Enemy2.Mesh.SetMaterial(2, MaterialInstanceConstant'chrisblake.mats.Legs');
-Enemy2.Mesh.SetMaterial(3, MaterialInstanceConstant'chrisblake.mats.Top2');
-Enemy2.Mesh.SetMaterial(4, MaterialInstanceConstant'chrisblake.mats.Skin3');
-Enemy2.Mesh.SetMaterial(5, MaterialInstanceConstant'chrisblake.mats.Top');
-Enemy2.Mesh.SetMaterial(6, MaterialInstanceConstant'chrisblake.mats.Top');
-Enemy2.Mesh.SetMaterial(7, MaterialInstanceConstant'chrisblake.mats.Skin3');
-Enemy2.Mesh.SetMaterial(8, MaterialInstanceConstant'chrisblake.mats.Glasses');
-Enemy2.Mesh.SetMaterial(9, MaterialInstanceConstant'chrisblake.mats.Skin2');
-Enemy2.Mesh.SetMaterial(10, MaterialInstanceConstant'chrisblake.mats.Watch1');
-Enemy2.Mesh.SetMaterial(11, MaterialInstanceConstant'chrisblake.mats.Watch1');
-Enemy2.Mesh.SetMaterial(12, MaterialInstanceConstant'chrisblake.mats.Skin3');
-ClientMessage("Blake Chris Activated!");
-break;
-}
-}
-    return;
-}
-    Foreach AllActors(Class'OLEnemySoldier', Enemy) {
-    Switch (Enemy.Class) {
-    Default:
-    Enemy.Mesh.SetSkeletalMesh(SkeletalMesh'chrisblake.Mesh.chrisblakebr');
-    Enemy.Mesh.SetMaterial(0, MaterialInstanceConstant'chrisblake.mats.Skin');
-    Enemy.Mesh.SetMaterial(1, MaterialInstanceConstant'chrisblake.mats.Legs');
-    Enemy.Mesh.SetMaterial(2, MaterialInstanceConstant'chrisblake.mats.Legs');
-    Enemy.Mesh.SetMaterial(3, MaterialInstanceConstant'chrisblake.mats.Top2');
-    Enemy.Mesh.SetMaterial(4, MaterialInstanceConstant'chrisblake.mats.Skin3');
-    Enemy.Mesh.SetMaterial(5, MaterialInstanceConstant'chrisblake.mats.Top');
-    Enemy.Mesh.SetMaterial(6, MaterialInstanceConstant'chrisblake.mats.Top');
-    Enemy.Mesh.SetMaterial(7, MaterialInstanceConstant'chrisblake.mats.Skin3');
-    Enemy.Mesh.SetMaterial(8, MaterialInstanceConstant'chrisblake.mats.Glasses');
-    Enemy.Mesh.SetMaterial(9, MaterialInstanceConstant'chrisblake.mats.Skin2');
-    Enemy.Mesh.SetMaterial(10, MaterialInstanceConstant'chrisblake.mats.Watch1');
-    Enemy.Mesh.SetMaterial(11, MaterialInstanceConstant'chrisblake.mats.Watch1');
-    Enemy.Mesh.SetMaterial(12, MaterialInstanceConstant'chrisblake.mats.Skin3');
-    ClientMessage("Blake Chris Activated!");
-    break;
-    }
+        Foreach AllActors(Class'OLEnemyGroom', Enemy2) {
+            Enemy2.Mesh.SetSkeletalMesh(SkeletalMesh'chrislady.Mesh.chrislady');
+            Enemy2.Mesh.SetMaterial(0, MaterialInstanceConstant'chrislady.mats.Arms');
+            Enemy2.Mesh.SetMaterial(1, MaterialInstanceConstant'chrislady.mats.Legs');
+            Enemy2.Mesh.SetMaterial(2, MaterialInstanceConstant'chrislady.mats.Skin');
+            SendMsg("Lady Chris is Activated!");
+        }
+    } 
+    else {
+        Foreach AllActors(Class'OLEnemySoldier', Enemy) {
+            Enemy.Mesh.SetSkeletalMesh(SkeletalMesh'chrislady.Mesh.chrislady');
+            Enemy.Mesh.SetMaterial(0, MaterialInstanceConstant'chrislady.mats.Arms');
+            Enemy.Mesh.SetMaterial(1, MaterialInstanceConstant'chrislady.mats.Legs');
+            Enemy.Mesh.SetMaterial(2, MaterialInstanceConstant'chrislady.mats.Skin');
+            SendMsg("Lady Chris is Activated!");
+        }
     }
 }
 
-Exec Function ChangeChris(optional bool Groom=false) {
-    local OLEnemySoldier Enemy;
-    local OLEnemyGroom Enemy2;
-
-if(Groom) {Foreach AllActors(Class'OLEnemyGroom', Enemy2) {
-Switch (Enemy.Class) {
-Default:
-Enemy2.Mesh.SetSkeletalMesh(SkeletalMesh'demochris.Mesh.chriswalker');
-Enemy2.Mesh.SetMaterial(0, MaterialInstanceConstant'demochris.mats.Skin');
-Enemy2.Mesh.SetMaterial(1, MaterialInstanceConstant'demochris.mats.Skin');
-Enemy2.Mesh.SetMaterial(2, MaterialInstanceConstant'demochris.mats.Skin');
-Enemy2.Mesh.SetMaterial(3, MaterialInstanceConstant'demochris.mats.Arms');
-Enemy2.Mesh.SetMaterial(4, MaterialInstanceConstant'demochris.mats.Legs');
-Enemy2.Mesh.SetMaterial(5, MaterialInstanceConstant'demochris.mats.Arms');
-ClientMessage("Chris Groom Activated!");
-break;
-}
-    return;
-}
-    }
-
-    Foreach AllActors(Class'OLEnemySoldier', Enemy) {
-    Switch (Enemy.Class) {
-    Default:
-    Enemy.Mesh.SetSkeletalMesh(SkeletalMesh'demochris.Mesh.chriswalker');
-    Enemy.Mesh.SetMaterial(0, MaterialInstanceConstant'demochris.mats.Skin');
-    Enemy.Mesh.SetMaterial(1, MaterialInstanceConstant'demochris.mats.Skin');
-    Enemy.Mesh.SetMaterial(2, MaterialInstanceConstant'demochris.mats.Skin');
-    Enemy.Mesh.SetMaterial(3, MaterialInstanceConstant'demochris.mats.Arms');
-    Enemy.Mesh.SetMaterial(4, MaterialInstanceConstant'demochris.mats.Legs');
-    Enemy.Mesh.SetMaterial(5, MaterialInstanceConstant'demochris.mats.Arms');
-    ClientMessage("Demo Chris Activated!");
-    break;
-    }
-    }
-}
-
-Exec Function PScale(Float X, Float Y, Float Z) {
-    local OLEnemySoldier Enemy;
-    local Vector E;
-    E = vect(0,0,0);
-    E.X = X;
-    E.Y = Y;
-    E.Z = Z;
-
-    Foreach AllActors(Class'OLEnemySoldier', Enemy) {Enemy.SetDrawScale3D(E);}
-}
-
-Exec Function ToggleBhop() {
-    bBhop=!bBhop;
-}
-
-Exec Function ShowMsg(OLHud.EHUDMessageType MsgType, string Msg) {
-    PickerHud(HUD).ShowMessage(MsgType, Msg);
-}
-
-Exec Function ChangeLady(optional bool Groom=false) {
-    local OLEnemySoldier Enemy;
-    local OLEnemyGroom Enemy2;
-
-if(Groom) {Foreach AllActors(Class'OLEnemyGroom', Enemy2) {
-Switch (Enemy.Class) {
-Default:
-Enemy2.Mesh.SetSkeletalMesh(SkeletalMesh'chrislady.Mesh.chrislady');
-Enemy2.Mesh.SetMaterial(0, MaterialInstanceConstant'chrislady.mats.Arms');
-Enemy2.Mesh.SetMaterial(1, MaterialInstanceConstant'chrislady.mats.Legs');
-Enemy2.Mesh.SetMaterial(2, MaterialInstanceConstant'chrislady.mats.Skin');
-ClientMessage("Lady Chris Activated!");
-break;
-}
-}
-    return;
-}
-
-    Foreach AllActors(Class'OLEnemySoldier', Enemy) {
-    Switch (Enemy.Class) {
-    Default:
-    Enemy.Mesh.SetSkeletalMesh(SkeletalMesh'chrislady.Mesh.chrislady');
-    Enemy.Mesh.SetMaterial(0, MaterialInstanceConstant'chrislady.mats.Arms');
-    Enemy.Mesh.SetMaterial(1, MaterialInstanceConstant'chrislady.mats.Legs');
-    Enemy.Mesh.SetMaterial(2, MaterialInstanceConstant'chrislady.mats.Skin');
-    ClientMessage("Lady Chris Activated!");
-    break;
-    }
-    }
-}
-
-Function DisableInput(Bool Input)
-{
+Function DisableInput(Bool Input) {
     local PickerInput HeroInput;
     local PickerHero Hero;
 
-    HeroInput=PickerInput(PlayerInput);
-    Hero=PickerHero(Pawn);
-
+    HeroInput = PickerInput(PlayerInput);
+    Hero = PickerHero(Pawn);
+    if(Hero == None) {
+        return;
+    }
     if(Input) {
         HeroInput.MoveCommand="asdtyunbv";
         HeroInput.StrafeCommand="asdtyunbv";
@@ -1572,8 +2614,8 @@ Function DisableInput(Bool Input)
         Hero.LimpingWalkSpeed=0;
         Hero.HobblingWalkSpeed=0;
         Hero.HobblingRunSpeed=0;
-        IgnoreLookInput(True);
-        IgnoreMoveInput(True);
+        IgnoreLookInput(true);
+        IgnoreMoveInput(true);
     }
     else {
         HeroInput.MoveCommand=HeroInput.Default.MoveCommand;
@@ -1589,146 +2631,1074 @@ Function DisableInput(Bool Input)
         Hero.LimpingWalkSpeed=Hero.Default.LimpingWalkSpeed;
         Hero.HobblingWalkSpeed=Hero.Default.HobblingWalkSpeed;
         Hero.HobblingRunSpeed=Hero.Default.HobblingRunSpeed;
-        IgnoreLookInput(False);
-        IgnoreMoveInput(False);
+        IgnoreLookInput(false);
+        IgnoreMoveInput(false);
     }
     HeroInput.bWasForward=false;
-        HeroInput.bWasBack=false;
-        HeroInput.bWasLeft=false;
-        HeroInput.bWasRight=false;
-        HeroInput.bEdgeForward=false;
-        HeroInput.bEdgeBack=false;
-        HeroInput.bEdgeLeft=false;
-        HeroInput.bEdgeRight=false;
+    HeroInput.bWasBack=false;
+    HeroInput.bWasLeft=false;
+    HeroInput.bWasRight=false;
+    HeroInput.bEdgeForward=false;
+    HeroInput.bEdgeBack=false;
+    HeroInput.bEdgeLeft=false;
+    HeroInput.bEdgeRight=false;
 }
 
-Exec Function CustomPlayerModel(String CustomPlayer) {
+Exec Function ChangePlayerModel(String CustomPlayer) {
     local MaterialInterface Mat;
     local OLPlayerModel FoundCP;
+    local String Link;
 
-    if(Class'OLPlayerModel'== None) {ClientMessage("OLCustomPlayerModelSDK not installed!"); return;}
-    if(CustomPlayer=="Default") {PickerHero(Pawn).Mesh.SetSkeletalMesh(Current_SkeletalMesh); CustomPM="Default"; PlayerState=true; return;}
-    FoundCP = OLPlayerModel( DynamicLoadObject(CustomPlayer, Class'Object'));
-    LogInternal(FoundCP);
-    if(FoundCP==None) {ClientMessage("PlayerModel not found!"); return;}
-    CustomPM=CustomPlayer;
-    PlayerState=false;
-    PickerHero(Pawn).Mesh.SetSkeletalMesh(FoundCP.HeroBody);
-}
+    if(PickerHero(Pawn) == None) {
+        return;
+    }
 
-Function InitPlayerModel() {WorldInfo.Game.SetTimer(0.0005, false, 'LoadCurrent', self);}
-Function LoadCurrent() {Current_SkeletalMesh=PickerHero(Pawn).Mesh.SkeletalMesh; Materials=PickerHero(Pawn).Mesh.Materials; ConsoleCommand("CustomPlayerModel " $ " " $ CustomPM);}
-
-Exec Function HeroScale(float dd) {
-    local PickerController Controller;
-    local PickerHero Hero;
-    local Vector C;
-    C = (PickerHero(Pawn).Location + vect(0,0,30));
-    Foreach AllActors(Class'PickerHero', Hero) {
-        Hero.Mesh.SetScale(dd);
-        Hero.ShadowProxy.SetScale(dd);
-        Hero.HeadMesh.SetScale(dd);
-        Hero.DeathParticles.SetScale(dd);
-        Hero.CameraMesh.SetScale(dd);
-        Hero.CameraMeshShadowProxy.SetScale(dd);
-        Hero.BloodEffect.SetScale(dd);
-        Hero.DecapitatedBloodEffect.SetScale(dd);
-        Hero.WaterFootstepParticlesRight.SetScale(dd);
-        Hero.WaterFootstepParticlesLeft.SetScale(dd);
-        Hero.WaterSplashParticles.SetScale(dd);
+    Switch(CustomPlayer) {
+        case "Default":
+            PickerHero(Pawn).Mesh.SetSkeletalMesh(Current_SkeletalMesh);
+            CustomPM = "Default";
+            ResetPlayerMaterials();
+            bDefaultPlayer = true;
+            break;
+        case "Miles":
+            PickerHero(Pawn).Mesh.SetSkeletalMesh(SkeletalMesh'02_Player.Pawn.Miles_beheaded');
+            CustomPM = "Miles";
+            ResetPlayerMaterials();
+            bDefaultPlayer = false;
+            break;
+        case "MilesNoFingers":
+            PickerHero(Pawn).Mesh.SetSkeletalMesh(PickerHero(Pawn).FingerlessMesh);
+            CustomPM = "MilesNoFingers";
+            ResetPlayerMaterials();
+            bDefaultPlayer = false;
+            break;
+        case "Waylon":
+            PickerHero(Pawn).Mesh.SetSkeletalMesh(PickerHero(Pawn).ITTechMesh);
+            CustomPM = "Waylon";
+            ResetPlayerMaterials();
+            bDefaultPlayer = false;
+            break;
+        case "WaylonPrisoner":
+            PickerHero(Pawn).Mesh.SetSkeletalMesh(PickerHero(Pawn).PrisonerMesh);
+            CustomPM = "WaylonPrisoner";
+            ResetPlayerMaterials();
+            bDefaultPlayer = false;
+            break;
+        case "WaylonNude":
+            PickerHero(Pawn).Mesh.SetSkeletalMesh(SkeletalMesh'DLC_Build2Floor2-01_SE.02_Waylon_Park.Mesh.Waylon_Park_Nude');
+            CustomPM = "WaylonNude";
+            ResetPlayerMaterials();
+            bDefaultPlayer = false;
+            break;
+        case "WaylonBloody":
+            PickerHero(Pawn).Mesh.SetSkeletalMesh(PickerHero(Pawn).PrisonerMesh);
+            CustomPM = "WaylonBloody";
+            ResetPlayerMaterials();
+            PickerHero(Pawn).Mesh.SetMaterial(0, MaterialInstanceConstant'DLC_AdmFloor1-01_SE.02_Waylon_Park.Textures.Id_1_bloody');
+            PickerHero(Pawn).Mesh.SetMaterial(1, MaterialInstanceConstant'DLC_AdmFloor1-01_SE.02_Waylon_Park.Textures.Id_2_bloody');
+            PickerHero(Pawn).Mesh.SetMaterial(2, MaterialInstanceConstant'DLC_AdmFloor1-01_SE.02_Waylon_Park.Textures.Id_3_bloody');
+            PickerHero(Pawn).Mesh.SetMaterial(4, MaterialInstanceConstant'DLC_AdmFloor1-01_SE.02_Waylon_Park.Textures.Id_3_bloody');
+            PickerHero(Pawn).Mesh.SetMaterial(5, MaterialInstanceConstant'DLC_AdmFloor1-01_SE.02_Waylon_Park.Textures.Id_2_bloody');
+            bDefaultPlayer = false;
+            break;
+        case "WaylonWound":
+            PickerHero(Pawn).Mesh.SetSkeletalMesh(PickerHero(Pawn).PrisonerMesh);
+            CustomPM = "WaylonWound";
+            ResetPlayerMaterials();
+            PickerHero(Pawn).Mesh.SetMaterial(0, MaterialInstanceConstant'DLC_AdmFloor1-01_SE.02_Waylon_Park.Textures.Id_1_stab_wound');
+            bDefaultPlayer = false;
+            break;
+        Default:
+            if(Class'OLPlayerModel' == None) {
+                Link="https://bit.ly/3hUJBvA";
+                SendMsg("OLCustomPlayerModelSDK not installed! (Check Log)");
+                `log("Download SDK:" @ Link);
+                return;
+            }
+            FoundCP = OLPlayerModel(DynamicLoadObject(CustomPlayer, Class'Object'));
+            LogInternal(FoundCP);
+            if(FoundCP == None) {
+                SendMsg("PlayerModel not found!");
+                SendMsg("Available:\nDefault\nMiles\nMilesNoFingers\nWaylon\nWaylonPrisoner\nWaylonNude\nWaylonBloody\nWaylonWound\n<Custom>");
+                return;
+            }
+            CustomPM=CustomPlayer;
+            SendMsg("Player Model is" @ CustomPM);
+            bDefaultPlayer = false;
+            PickerHero(Pawn).Mesh.SetSkeletalMesh(FoundCP.HeroBody);
+            ResetPlayerMaterials();
+            break;
     }
 }
 
-Exec Function DstrClass(Class<Actor> aClass) {
+Function InitPlayerModel() {
+    WorldInfo.Game.SetTimer(0.5, false, 'LoadCurrent', Self);
+}
+
+Function LoadCurrent() {
+    Current_SkeletalMesh = PickerHero(Pawn).Mesh.SkeletalMesh;
+    Materials = PickerHero(Pawn).Mesh.Materials;
+    if(CustomPM != "Default") {
+        ChangePlayerModel(CustomPM);
+    }
+}
+
+Function ResetPlayerMaterials() {
+    local Int Index;
+    local MaterialInterface Material;
+
+    Foreach PickerHero(Pawn).Mesh.SkeletalMesh.Materials(Material) {
+        PickerHero(Pawn).Mesh.SetMaterial(Index, none);
+        ++Index;
+    }
+    return;
+}
+
+Function ResetEnemyMaterials() {
+    local Int Index;
+    local MaterialInterface Material;
+    local OLBot Bot;
+
+    Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+        Foreach Bot.EnemyPawn.Mesh.SkeletalMesh.Materials(Material) {
+            Bot.EnemyPawn.Mesh.SetMaterial(Index, none);
+            ++Index;
+        }
+    }
+}
+
+Exec Function DelClass(Class<Actor> aClass) {
     local Actor A;
 
-    OLCheatManager.KillAll(aClass);
-    if(ClassIsChildOf(aClass, class'Pawn')){KillAllPawns(class<Pawn>(aClass)); return;}
-    Foreach DynamicActors(class'Actor', A){if(ClassIsChildOf(A.Class, aClass)) {A.Destroy();}}
+    CheatManager.KillAll(aClass);
+    if(ClassIsChildOf(aClass, Class'Pawn')) {
+        KillAllPawns(Class<Pawn>(aClass));
+        return;
+    }
+    Foreach DynamicActors(Class'Actor', A) {
+        if(ClassIsChildOf(A.Class, aClass)) {
+            A.Destroy();
+        }
+    }
 }
 
 Function KillAllPawns(Class<Pawn> aClass) {
     local Pawn P;
 
-    Foreach DynamicActors(class'Pawn', P) {if(ClassIsChildOf(P.Class, aClass) && !P.IsPlayerPawn()) {if(P.Controller != none) {P.Controller.Destroy();} P.Destroy();}}       
+    Foreach DynamicActors(Class'Pawn', P) {
+        if(ClassIsChildOf(P.Class, aClass) && !P.IsPlayerPawn()) {
+            if(P.Controller != None) {
+                P.Controller.Destroy();
+            }
+            P.Destroy();
+        }
+    }
 }
+
 Exec Function OffBaseLight() {
-    local OLLight Light;
-    local PointLightMovable Point;
-    local SpotLightMovable Spot;
-    local DominantDirectionalLight DDL;
-    local PickerHero Hero;
-    local OLBot OLBot;
-    Foreach AllActors(Class'OLLight', Light) {
-    Light.SpotLight.SetEnabled(false);
-    Light.Destroy();
-    `log(Light);
-    }
-    Foreach AllActors(Class'PointLightMovable', Point) {
-    Point.LightComponent.SetEnabled(false);
-    Point.Destroy();
-    Point.LightComponent.OnUpdatePropertyBrightness();
-    `log(Point);
-    }
-    Foreach AllActors(Class'SpotLightMovable', Spot) {
-        Spot.LightComponent.SetEnabled(false);
-        Spot.Destroy();
-        Spot.LightComponent.OnUpdatePropertyBrightness();
-        `log(Spot);
-    }
-    Foreach AllActors(Class'DominantDirectionalLight', DDL) {
-        DDL.LightComponent.SetEnabled(false);
-        DDL.Destroy();
-        `log(DDL);
-    }
-   // WorldInfo.Game.SetTimer(0.5, false, 'OffBaseLight', Self);
+    local OLLight OLLight;
+    local PointLight Point;
+    local SpotLight Spot;
+    local DominantDirectionalLight Dom;
 
+    Foreach AllActors(Class'OLLight', OLLight) {
+        OLLight.SpotLight.SetEnabled(false);
+        OLLight.FogMesh.SetHidden(true);
+        OLLight.Destroy();
+    }
+    Foreach AllActors(Class'PointLight', Point) {
+        Point.LightComponent.SetEnabled(false);
+        Point.LightComponent.OnUpdatePropertyBrightness();
+        Point.Destroy();
+    }
+    Foreach AllActors(Class'SpotLight', Spot) {
+        Spot.LightComponent.SetEnabled(false);
+        Spot.LightComponent.OnUpdatePropertyBrightness();
+        Spot.Destroy();
+    }
+    Foreach AllActors(Class'DominantDirectionalLight', Dom) {
+        Dom.LightComponent.SetEnabled(false);
+        Dom.Destroy();
+    }
 }
 
-/************************OTHER FUNCTIONS************************/
+/******************************************OTHER FUNCTIONS******************************************/
 
-Function Bool RandBool() {return Bool(Rand(2));}
+/****************** ALIASES ******************/
+
+Exec Function DS(Float Dmg) {
+    DmgSelf(Dmg);
+}
+
+Exec Function Bind(String Key, String Command) {
+    ConsoleCommand("SetBind" @ Key @ Command);
+}
+
+Exec Function CP(String CP, Bool SV=false, Bool FC=false) {
+    Checkpoint(CP, SV, FC);
+}
+
+Exec Function SME(ESpecialMoveType SpecialMove) {
+    SpecialMoveEnemy(SpecialMove);
+}
+
+Exec Function SMP(ESpecialMoveType SpecialMove) {
+    SpecialMovePlayer(SpecialMove);
+}
+
+Exec Function GS(Float Speed=1) {
+    SetGameSpeed(Speed);
+}
+
+Exec Function CB(Int Increase) {
+    ChangeBatteries(Increase);
+}
+
+Exec Function InfBatt() {
+    ToggleUnlimitedBatteries();
+}
+
+Exec Function CPM(String PlayerModel) {
+    ChangePlayerModel(PlayerModel);
+}
+
+/****************** INFO ******************/
+
+Exec Function HideObj() {
+    PickerHud(HUD).ObjectiveScreen.SetVisible(false);
+    PickerHud(HUD).ObjectiveScreen.SetMessage(1, "");
+}
+Exec Function ShowObj(String ObjectiveText, Float LifeTime=0, Bool Normal=false) {
+    if(PickerHud(HUD).ObjectiveScreen == None) {
+        PickerHud(HUD).ObjectiveScreen = new (Self) Class'OLUIMessage';
+    }
+    if(PickerHud(HUD).ObjectiveScreen != None) {
+        PickerHud(HUD).ObjectiveScreen.Start(false);
+        if(Normal) {
+            PickerHud(HUD).ObjectiveScreen.SetMessage(1, Localize("Messages", "NewObjective", "OLGame") @ (Localize("Objectives", String(CurrentObjective), "OLGame")));
+        }
+        else {
+            PickerHud(HUD).ObjectiveScreen.SetMessage(1, Localize("Messages", "NewObjective", "OLGame") @ ObjectiveText);
+        }
+        PickerHud(HUD).ObjectiveScreen.SetVisible(true);
+        if(LifeTime != 0 && LifeTime > 0) {
+            WorldInfo.Game.SetTimer(LifeTime, false, 'HideObj', Self);
+        }
+    }
+}
+
+Exec Function ShowTrig(Bool Show) {
+    local TriggerVolume Trigger;
+
+    Foreach AllActors(Class'TriggerVolume', Trigger) {
+		Trigger.BrushComponent.SetHidden(!Show);
+		Trigger.SetHidden(!Show);
+	}
+}
+
+Function ShowMsg(EHUDMessageType MsgType, String Msg) {
+    PickerHud(HUD).ShowMessage(MsgType, Msg);
+}
+
+Exec Function SendMsg(String Msg, Float LifeTime=3.0) {
+    if(!PickerHud(HUD).DisablePickerMessages) {
+        PickerHud(HUD).AddConsoleMessage(Msg, Class'LocalMessage', PlayerReplicationInfo, LifeTime);
+    }
+}
+
+Exec Function SendLocalize(String File, String Section, String Key) {
+    SendMsg(Localize(Section, Key, File));
+}
+
+Exec Function SendLog(String Msg) {
+    `log(Msg);
+}
+
+Exec Function SendFloor() {
+    SendMsg(String(PickerHero(Pawn).GetMaterialBelowFeet()));
+}
+
+Exec Function SendRandLoc() {
+    SendMsg(PickerHud(HUD).RandLocalize());
+}
+
+
+
+/****************** RANDOM ******************/
+
+
+Exec Function RandUberEffect() {
+    local OLUberPostProcessEffect Effect;
+
+    Effect = FXManager.CurrentUberPostEffect;
+    Effect.VignetteBlack=RandRange(0.100f, 1.750f);
+    Effect.VignetteWhite=RandRange(0.100f, 1.750f);
+    Effect.GrainBrightness=RandRange(0.500f, 1.000f);
+    Effect.GrainOpacity=RandRange(0.000f, 255.000f);
+    Effect.GrainScale=RandRange(0.200f, 3.500f);
+    Effect.HurtExp=RandRange(0.000f, 10.000f);
+    Effect.HurtTimeScale=RandRange(0.000f, 10.000f);
+    Effect.HurtScale=RandRange(0.000f, 10.000f);
+    Effect.CameraColorEffect=RandRange(0.200f, 2.000f);
+    Effect.CameraScale=RandRange(0.000f, 2.000f);
+    Effect.CameraGlassLightintensity=RandRange(0.200f, 2.000f);
+}
+
+Function Bool RandBool() {
+    return Bool(Rand(2));
+}
+
 Function String RandChar() {
-    local Int Out;
-    Out = RandRange(33, 126);
-    return Chr(Out);
+    return Chr(RandRange(33, 126));
 }
 
 Function String RandString(Int Length) {
-    local Int i;
+    local Int I;
     local String Out;
 
-    while(i < Length) {Out = Out $ RandChar(); i+=1;}
+    While(I < Length) {
+        Out = Out $ RandChar(); i += 1;
+    }
+    return Out;
+}
+Function Float RandFloat(Float Max) {
+    local Float Out;
+    
+    Out = RandRange(0.0000000f, Max);
     return Out;
 }
 
-Function Byte RandByte(Byte Max) {return Byte(RandRange(0, Max));}
-Function RandSpawnEnemy(optional Int Count=1) {
-    local Byte D;
-    local Int i;
-    local String Out;
+Function Byte RandByte(Byte Max) {
+    return Byte(Rand(Max));
+}
 
-    while(i < Count) {
-    D = RandRange(0,2);
-    if(D==0) {Out = "Soldier";} else if(D==1) {Out = "Groom";} else if(D==2) {Out = "NanoCloud";}
-    SpawnEnemy(Out); i+=1;
+Exec Function RandSpawnEnemy(Int Count=1) {
+    local Int I;
+
+    While(I < Count) {
+        Switch(Rand(5)) {
+            case 0:
+                SpawnEnemy("Soldier");
+                break;
+            case 1:
+                SpawnEnemy("Groom");
+                break;
+            case 2:
+                SpawnEnemy("NanoCloud");
+                break;
+            case 3:
+                SpawnEnemy("Surgeon");
+                break;
+            case 4:
+                SpawnEnemy("Priest");
+                break;
+            case 5:
+                SpawnEnemy("Cannibal");
+                break;
+        }
+        i += 1;
     }
 }
 
-Function RandSpawnEnemyCount(Int Min, Int Max, optional String Enemy="") {
+Exec Function RandSpawnEnemyCount(Int Min, Int Max, String Enemy="") {
     local Int Out;
+    
     Out = RandRange(Min, Max);
-    if(Enemy != "Soldier" && Enemy != "Groom" && Enemy != "NanoCloud") {RandSpawnEnemy(Out); return;}
+    if(Enemy != "Soldier" && Enemy != "Groom" && Enemy != "NanoCloud" && Enemy != "Surgeon" && Enemy != "Priest" && Enemy != "Cannibal") {
+        RandSpawnEnemy(Out);
+        return;
+    }
     SpawnEnemy(Enemy, Out);
+
 }
 
-Function RandDoorType() {ConsoleCommand("Set OLDoor DoorMeshType" @ RandRange(0, 23));}
+Exec Function RandSpecialMoveAnims(Bool Normal=false) {
+    local Int Index;
+    local SpecialMoveParameters Params;
+
+    if(!Normal && Rand(100) > 25) {
+        While(Index <= 70) {
+            PickerHero(Pawn).SpecialMoveParams[Index].AnimName = PickerHero(Pawn).Mesh.AnimSets[0].Sequences[Rand(358)].SequenceName;
+            ++Index;
+        }
+    }
+    else {
+        While(Index <= 70) {
+            PickerHero(Pawn).SpecialMoveParams[Index].AnimName = PickerHero(Pawn).Default.SpecialMoveParams[Index].AnimName;
+            ++Index;
+        }
+    }
+}
+
+Exec Function RandLightColor() {
+    local PointLight Point;
+    local SpotLight Spot;
+    local DominantDirectionalLight Dom;
+    local SkyLight Sky;
+
+    Foreach AllActors(Class'PointLight', Point) {
+        Point.LightComponent.SetLightProperties(,RandColor(Point.LightComponent.LightColor.A));
+    }
+    Foreach AllActors(Class'SpotLight', Spot) {
+        Spot.LightComponent.SetLightProperties(,RandColor(Spot.LightComponent.LightColor.A));
+    }
+    Foreach AllActors(Class'DominantDirectionalLight', Dom) {
+        Dom.LightComponent.SetLightProperties(,RandColor(Dom.LightComponent.LightColor.A));
+    }
+    Foreach AllActors(Class'SkyLight', Sky) {
+        Sky.LightComponent.SetLightProperties(,RandColor(Sky.LightComponent.LightColor.A));
+    }
+}
+
+Exec Function RandDoors() {
+    local String Mat, SndMat;
+    Switch(Rand(24)) {
+        case 0:
+            Mat = "Undefined";
+            break;
+        case 1:
+            Mat = "Wooden";
+            break;
+        case 2:
+            Mat = "WoodenOld";
+            break;
+        case 3:
+            Mat = "WoodenWindow";
+            break;
+        case 4:
+            Mat = "WoodenWindowSmall";
+            break;
+        case 5:
+            Mat = "WoodenWindowOld";
+            break;
+        case 6:
+            Mat = "WoodenWindowOldSmall";
+            break;
+        case 7:
+            Mat = "Metal";
+            break;
+        case 8:
+            Mat = "MetalWindow";
+            break;
+        case 9:
+            Mat = "MetalWindowSmall";
+            break;
+        case 10:
+            Mat = "Enforced";
+            break;
+        case 11:
+            Mat = "Grid";
+            break;
+        case 12:
+            Mat = "Prison";
+            break;
+        case 13:
+            Mat = "Entrance";
+            break;
+        case 14:
+            Mat = "Bathroom";
+            break;
+        case 15:
+            Mat = "IsolatedCell";
+            break;
+        case 16:
+            Mat = "Locker";
+            break;
+        case 17:
+            Mat = "LockerRusted";
+            break;
+        case 18:
+            Mat = "LockerBeige";
+            break;
+        case 19:
+            Mat = "LockerGreen";
+            break;
+        case 20:
+            Mat = "Glass";
+            break;
+        case 21:
+            Mat = "Fence";
+            break;
+        case 22:
+            Mat = "ForceGate";
+            break;
+        case 23:
+            Mat = "Gate";
+            break;
+        case 24:
+            Mat = "LockerHole";
+            break;
+        
+    }
+    Switch(Rand(4)) {
+        case 0:
+            SndMat = "Wood";
+            break;
+        case 1:
+            SndMat = "Metal";
+            break;
+        case 2:
+            SndMat = "SecurityDoor";
+            break;
+        case 3:
+            SndMat = "BigPrisonDoor";
+            break;
+        case 4:
+            SndMat = "BigWoodenDoor";
+            break;
+    }
+    ChangeDoorMeshType(Mat, Name(SndMat));
+}
+
+Exec Function ToggleRandPPS(Float Speed=0.3, Bool Stop=false) {
+    if(!Stop) {
+        WorldInfo.Game.SetTimer(Speed, true, 'RandPPS', Self);
+    }
+    else {
+        WorldInfo.Game.ClearTimer('RandPPS', Self);
+    }
+}
+
+Exec Function RandPPS() {
+    FXManager.SetPPSFromScript(EPPSMode(Rand(FXManager.EPPSMode.EnumCount)));
+}
+
+Exec Function RandPatientModel() {
+    local OLEnemyGenericPatient Patient;
+    local OLEnemySoldier Soldier;
+    local OLEnemyNanoCloud ForMesh;
+    local SkeletalMesh PatientMesh, SoldierMesh;
+    local Int Index;
+    local MaterialInterface Material;
+    
+    Foreach WorldInfo.AllPawns(Class'OLEnemyGenericPatient', Patient) {
+        Switch(Rand(45)) {
+            case 0:
+                PatientMesh = SkeletalMesh'Prison_01-LD.Duponts.Mesh.Dupont';
+                break;
+            case 1:
+                PatientMesh = SkeletalMesh'Prison_01-LD.Duponts.Mesh.Dupont_2';
+                break;
+            case 2:
+                PatientMesh = SkeletalMesh'DLC_PrisonFloor2-01_LD.02_Scientist_DLC.Guard_alive';
+                break;
+            case 3:
+                PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Worker.Mesh.Guard';
+                break;
+            case 4:
+                PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient_2nd_package.Mesh.Rape_victim';
+                break;
+            case 5:
+                PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient_2nd_package.Mesh.Patient_19_wound';
+                break;
+            case 6:
+                PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_8';
+                break;
+            case 7:
+                PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_7';
+                break;
+            case 8:
+                PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_6';
+                break;
+            case 9:
+                PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_4';
+                break;
+            case 10:
+                PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_3';
+                break;
+            case 11:
+                PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_21';
+                break;
+            case 12:
+                PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_2';
+                break;
+            case 13:
+                PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_19';
+                break;
+            case 14:
+                PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_18';
+                break;
+            case 15:
+                PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_17';
+                break;
+            case 16:
+                PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_16';
+                break;
+            case 17:
+                PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_12';
+                break;
+            case 18:
+                PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_1';
+                break;
+            case 19:
+                PatientMesh = SkeletalMesh'Prison_01-LD.02_Generic_Patient.Meshes.Patient_11';
+                break;
+            case 20:
+                PatientMesh = SkeletalMesh'FemaleWard_Floor1-LD.02_Generic_Patient.Meshes.Patient_14';
+                break;
+            case 21:
+                PatientMesh = SkeletalMesh'FemaleWard_Floor2-LD.02_Generic_Patient.Meshes.Patient_15';
+                break;
+            case 22:
+                PatientMesh = SkeletalMesh'Male_ward_03a-SE.02_Generic_Patient.Meshes.Patient_5';
+                break;
+            case 23:
+                PatientMesh = SkeletalMesh'Male_ward_LD.02_Generic_Worker.Mesh.Worker_01';
+                break;
+            case 24:
+                PatientMesh = SkeletalMesh'Sewers_LD.02_Generic_Patient.Meshes.Patient_9';
+                break;
+            case 25:
+                PatientMesh = SkeletalMesh'Center_block_03-LD.02_Priest.Pawn.Priest-burned';
+                break;
+            case 26:
+                PatientMesh = SkeletalMesh'Center_block_sript_Revisit.02_Generic_Worker.Mesh.worker_4';
+                break;
+            case 27:
+                PatientMesh = SkeletalMesh'Center_block_sript.02_Generic_Worker.Mesh.worker_3';
+                break;
+            case 28:
+                PatientMesh = SkeletalMesh'Male_ward_Cafeteria_fire.02_Generic_Patient_2nd_package.Mesh.pyro_dialogue';
+                break;
+            case 29:
+                PatientMesh = SkeletalMesh'DLC_PrisonFloor2-01_SE.02_Blair.Blair';
+                break;
+            case 30:
+                PatientMesh = SkeletalMesh'DLC_AdmFloor1-01_SE.02_Blair.Blair_exploded';
+                break;
+            case 31:
+                PatientMesh = SkeletalMesh'DLC_PrisonFloor2-01_SE.02_Generic_Patient.Meshes.Patient_13';
+                break;
+            case 32:
+                PatientMesh = SkeletalMesh'DLC_PrisonCourtYard-01_LD.02_Generic_Patient_DLC.Meshes.Patient_10';
+                break;
+            case 33:
+                PatientMesh = SkeletalMesh'DLC_MaleFloor2-01_SE.02_Swat.Mesh.Swat_v3';
+                break;
+            case 34:
+                PatientMesh = SkeletalMesh'DLC_MaleFloor2-01_SE.02_Swat.Mesh.Swat_v2';
+                break;
+            case 35:
+                PatientMesh = SkeletalMesh'DLC_MaleFloor2-01_SE.02_Swat.Mesh.Swat_v1';
+                break;
+            case 36:
+                PatientMesh = SkeletalMesh'DLC_Lab-01_SE.02_Scientist_DLC.Scientist_Licker';
+                break;
+            case 37:
+                PatientMesh = SkeletalMesh'DLC_Lab-01_SE.02_Scientist_DLC.masked_scientist';
+                break;
+            case 38:
+                PatientMesh = SkeletalMesh'DLC_Lab-01_SE.02_Scientist_DLC.hazmat_scientist';
+                break;
+            case 39:
+                PatientMesh = SkeletalMesh'DLC_Build1Floor2-01_SE.02_Scientist_DLC.Mesh.Scientist';
+                break;
+            case 40:
+                PatientMesh = SkeletalMesh'DLC_Lab-01_SE.02_Generic_Worker_DLC.worker_4';
+                break;
+            case 41:
+                PatientMesh = SkeletalMesh'DLC_Build2Attic-01_LD.02_Generic_Worker.Mesh.Worker_02';
+                break;
+            case 42:
+                PatientMesh = SkeletalMesh'DLC_Build2Floor3-01_LD.02_Generic_Patient_DLC.Meshes.Patient_20';
+                break;
+            case 43:
+                PatientMesh = SkeletalMesh'DLC_Build1Floor1-01_SE.02_Scientist_DLC.Mesh.Scientist_03';
+                break;
+            case 44:
+                PatientMesh = SkeletalMesh'DLC_Build1Floor1-01_SE.02_Scientist_DLC.Mesh.Scientist_02';
+                break;
+            case 45:
+                PatientMesh = SkeletalMesh'DLC_Build1Floor1-01_SE.02_Generic_Worker.Mesh.Worker_01_headless';
+                break;
+        }
+        Patient.Mesh.SetSkeletalMesh(PatientMesh);
+        Foreach Patient.Mesh.SkeletalMesh.Materials(Material) {
+            Patient.Mesh.SetMaterial(Index, none);
+            ++Index;
+        }
+    }
+    Foreach WorldInfo.AllPawns(Class'OLEnemySoldier', Soldier) {
+        Switch(Rand(4)) {
+            case 0:
+                SoldierMesh = SkeletalMesh'02_Soldier.Pawn.Soldier-03';
+                Soldier.Mesh.SetPhysicsAsset(PhysicsAsset'02_Soldier.Pawn.Soldier-v2_Physics', true);
+                break;
+            case 1:
+                SoldierMesh = SkeletalMesh'02_Groom.Groom_Pre_mutation_1';
+                Soldier.Mesh.SetPhysicsAsset(None, true);
+                break;
+            case 2:
+                SoldierMesh = SkeletalMesh'DLC_Build2Exterior-01_LD.02_Groom.Groom_Shirt';
+                Soldier.Mesh.SetPhysicsAsset(None, true);
+                break;
+            case 3:
+                SoldierMesh = SkeletalMesh'02_NanoCloud.Pawn.Nano_Swarm_body';
+                Soldier.Mesh.SetPhysicsAsset(PhysicsAsset'02_Soldier.Pawn.Soldier-v2_Physics', true);
+                break;
+        }
+        Soldier.Mesh.SetSkeletalMesh(SoldierMesh);
+        Foreach Soldier.Mesh.SkeletalMesh.Materials(Material) {
+            Soldier.Mesh.SetMaterial(Index, none);
+            ++Index;
+        }
+    }
+}
+
+Exec Function RandDoorType() {
+    ConsoleCommand("Set OLDoor DoorMeshType" @ Rand(23));
+}
+
+Exec Function RandPlayerState() {
+    Switch(Rand(3)) {
+        case 0:
+            PickerHero(Pawn).bLimping = false;
+            PickerHero(Pawn).bHobbling = false;
+            break;
+        case 1:
+            PickerHero(Pawn).bLimping = true;
+            PickerHero(Pawn).bHobbling = false;
+            break;
+        case 2:
+            PickerHero(Pawn).bHobbling = true;
+            PickerHero(Pawn).TargetHobblingIntensity = FRand();
+            PickerHero(Pawn).bLimping = false;
+            break;
+    }
+}
+
+Exec Function ToggleRandPatientModel(Float Speed=0.3, Bool Stop=false) {
+    if(!Stop) {
+        WorldInfo.Game.SetTimer(Speed, true, 'RandPatientModel', Self);
+    }
+    else {
+        WorldInfo.Game.ClearTimer('RandPatientModel', Self);
+    }
+}
+
+Exec Function ToggleRandLightColor(Float Speed=0.3, Bool Stop=false) {
+    if(!Stop) {
+        WorldInfo.Game.SetTimer(Speed, true, 'RandLightColor', Self);
+    }
+    else {
+        WorldInfo.Game.ClearTimer('RandLightColor', Self);
+    }
+}
+
+Exec Function ToggleRandChangeFOV(Float Speed=0.3, Bool Stop=false) {
+    if(!Stop) {
+        WorldInfo.Game.SetTimer(Speed, true, 'RandChangeFOV', Self);
+    }
+    else {
+        WorldInfo.Game.ClearTimer('RandChangeFOV', Self);
+    }
+}
+
+Exec Function RandChangeFOV() {
+    local PickerHero Hero;
+
+    Hero = PickerHero(Pawn);
+    Hero.DefaultFOV = Rand(177) + FRand();
+    Hero.RunningFOV = Rand(177) + FRand();
+    Hero.CamcorderMaxFOV = Rand(177) + FRand();
+    Hero.CamcorderNVMaxFOV = Rand(177) + FRand();
+}
+
+Exec Function ToggleRandChangeDoorMeshType(Float Speed=0.3, Bool Stop=false) {
+    if(!Stop) {
+        WorldInfo.Game.SetTimer(Speed, true, 'RandChangeDoorMeshType', Self);
+    }
+    else {
+        WorldInfo.Game.ClearTimer('RandChangeDoorMeshType', Self);
+    }
+}
+
+Exec Function RandChangeDoorMeshType() {
+    local String MeshType;
+    local Name SndMat;
+
+    Switch(Rand(24)) {
+        case 0:
+            MeshType = "Undefined";
+            break;
+        case 1:
+            MeshType = "Wooden";
+            break;
+        case 2:
+            MeshType = "WoodenOld";
+            break;
+        case 3:
+            MeshType = "WoodenWindow";
+            break;
+        case 4:
+            MeshType = "WoodenWindowSmall";
+            break;
+        case 5:
+            MeshType = "WoodenWindowOld";
+            break;
+        case 6:
+            MeshType = "WoodenWindowOldSmall";
+            break;
+        case 7:
+            MeshType = "Metal";
+            break;
+        case 8:
+            MeshType = "MetalWindow";
+            break;
+        case 9:
+            MeshType = "MetalWindowSmall";
+            break;
+        case 10:
+            MeshType = "Enforced";
+            break;
+        case 11:
+            MeshType = "Grid";
+            break;
+        case 12:
+            MeshType = "Prison";
+            break;
+        case 13:
+            MeshType = "Entrance";
+            break;
+        case 14:
+            MeshType = "Bathroom";
+            break;
+        case 15:
+            MeshType = "IsolatedCell";
+            break;
+        case 16:
+            MeshType = "Locker";
+            break;
+        case 17:
+            MeshType = "LockerRusted";
+            break;
+        case 18:
+            MeshType = "LockerBeige";
+            break;
+        case 19:
+            MeshType = "LockerGreen";
+            break;
+        case 20:
+            MeshType = "LockerHole";
+            break;
+        case 21:
+            MeshType = "Glass";
+            break;
+        case 22:
+            MeshType = "Fence";
+            break;
+        case 23:
+            MeshType = "Gate";
+            break;
+        case 24:
+            MeshType = "ForceGate";
+            break;
+    }
+    Switch(Rand(4)) {
+        case 0:
+            SndMat = 'Wood';
+            break;
+        case 1:
+            SndMat = 'Metal';
+            break;
+        case 2:
+            SndMat = 'SecurityDoor';
+            break;
+        case 3:
+            SndMat = 'BigPrisonDoor';
+            break;
+        case 4:
+            SndMat = 'BigWoodenDoor';
+            break;
+    }
+    ChangeDoorMeshType(MeshType, SndMat);
+}
+
+Exec Function RandPlayerSpeed() {
+    local PickerHero Hero;
+
+    Hero = PickerHero(Pawn);
+    Hero.NormalWalkSpeed = Rand(400);
+    Hero.NormalRunSpeed = Rand(900);
+    Hero.CrouchedSpeed = Rand(150);
+    Hero.ElectrifiedSpeed = Rand(200);
+    Hero.WaterWalkSpeed = Rand(200);
+    Hero.WaterRunSpeed = Rand(400);
+    Hero.LimpingWalkSpeed = Rand(174);
+    Hero.HobblingWalkSpeed = Rand(280);
+    Hero.HobblingRunSpeed = Rand(500);
+    Hero.SpeedPenaltyBackwards = Rand(0.7);
+    Hero.SpeedPenaltyStrafe = Rand(0.4);
+    Hero.ForwardSpeedForJumpWalking = Rand(900);
+    Hero.ForwardSpeedForJumpRunning = Rand(1300);
+    Hero.JumpClearanceWalking = Rand(400);
+    Hero.JumpClearanceRunning = Rand(600);
+}
+
+Exec Function KAActor() {
+    local KActorFromStatic Act;
+    local FracturedStaticMeshActor StaF;
+    local StaticMeshActor Sta;
+
+    Act = Spawn(Class'KActorFromStatic');
+    Foreach AllActors(Class'StaticMeshActor', Sta) {
+        Act.MakeDynamic(Sta.StaticMeshComponent);
+    }
+    Foreach AllActors(Class'FracturedStaticMeshActor', StaF) {
+        Act.MakeDynamic(StaF.FracturedStaticMeshComponent);
+    }
+    Act.Destroy();
+    
+}
+
+Exec Function ToggleKAActor(Float Speed=0.3, Bool Stop=false) {
+    if(Stop) {
+        WorldInfo.Game.ClearTimer('KAActor', Self);
+    }
+    else {
+        WorldInfo.Game.SetTimer(Speed, true, 'KAActor', Self);
+    }
+}
+
+
+Exec Function CantHideFromUs(Bool Stop=false) {
+    local OLBot Bot;
+
+    Foreach WorldInfo.AllControllers(Class'OLBot', Bot) {
+        if(!Stop) {
+            Bot.SightComponent.bAlwaysSeeTarget = true;
+            Bot.SightComponent.bSawPlayerEnterHidingSpot = true;
+            Bot.SightComponent.bSawPlayerEnterBed = true;
+            Bot.SightComponent.bSawPlayerGoUnder = true;
+            WorldInfo.Game.SetTimer(0.01, false, 'CantHideFromUs', Self);
+        }
+        else {
+            WorldInfo.Game.ClearTimer('CantHideFromUs', Self);
+            Bot.SightComponent.bAlwaysSeeTarget = false;
+            Bot.SightComponent.bSawPlayerEnterHidingSpot = false;
+            Bot.SightComponent.bSawPlayerEnterBed = false;
+            Bot.SightComponent.bSawPlayerGoUnder = false;
+        }
+    }
+}
+
+Function Color RandColor(Byte Alpha) {
+    local Color Color;
+
+    Color.R = Rand(255);
+    Color.G = Rand(255);
+    Color.B = Rand(255);
+    Color.A = Alpha;
+
+    return Color;
+}
+
+Simulated Event PostBeginPlay() {
+    Super(PlayerController).PostBeginPlay();
+    if(TutorialManager != none) {
+        TutorialManager.Clear();
+    }
+    bProfileSettingsUpdated = true;
+    UpdateDifficultyBasedValues();
+    CheatManager = new (Self) CheatClass;
+    CheatManager.InitCheatManager();
+}
+
+State PlayerWalking {
+    ignores SeePlayer, HearNoise, Bump;
+
+    Function PlayerMove(Float DeltaTime) {
+        local Rotator DeltaRot, DummyViewRotation;
+
+        if(Pawn == None) {
+            return;
+        }
+        if(!HUD.ShowingFullScreenOverlay()) {
+            NativePlayerMove(DeltaTime);
+            if(PlayerCamera != None) {
+                DummyViewRotation = Rotation;
+                DeltaRot.Yaw = Int(PlayerInput.aTurn);
+                DeltaRot.Pitch = Int(PlayerInput.aLookUp);
+                PlayerCamera.ProcessViewRotation(DeltaTime, DummyViewRotation, DeltaRot);
+            }
+        }       
+    }
+    stop;    
+}
+
+Function Bool AllowAutoJump() {
+    local OLCSA CSA;
+    local OLPickableObject PO;
+    local OLDoor Door;
+    local OLGameplayItemPickup IP;
+    local OLBatteriesPickupFactory Battery;
+    local OLCollectiblePickup Doc;
+    local OLPushableObject Push;
+    local Vector C;
+    local Rotator Rot;
+
+    GetPlayerViewPoint(C, Rot);
+    Foreach AllActors(Class'OLCSA', CSA) {
+        if(VSize(C - CSA.Location) <= 150) {
+            return True;
+        }
+    }
+    Foreach AllActors(Class'OLPickableObject', PO) {
+        if(VSize(C - PO.Location) <= 150) {
+            return True;
+        }
+    }
+    Foreach AllActors(Class'OLDoor', Door) {
+        if(VSize(PickerHero(Pawn).Location - Door.Location) <= 100) {
+            return True;
+        }
+    }
+    Foreach AllActors(Class'OLGameplayItemPickup', IP) {
+        if(VSize(C - IP.Location) <= 150) {
+            return True;
+        }
+    }
+    Foreach AllActors(Class'OLBatteriesPickupFactory', Battery) {
+        if(VSize(C - Battery.Location) <= 150) {
+            return True;
+        }
+    }
+    Foreach AllActors(Class'OLCollectiblePickup', Doc) {
+        if(VSize(C - Doc.Location) <= 150) {
+            return True;
+        }
+    }
+    Foreach AllActors(Class'OLPushableObject', Push) {
+        if(VSize(PickerHero(Pawn).Location - Push.Location) <= 100) {
+            return True;
+        }
+    }
+    return False;
+}
 
 DefaultProperties
 {
-    InputClass=Class'PickerInput'
-    CheatClass=Class'OLCheatManager'
-    TeleportSound=SoundCue'PickerDebugMenu.TeleportSound'
-    ButtonSound=SoundCue'PickerDebugMenu.Button_Click'
-    MenuMusic=SoundCue'PickerDebugMenu.MenuMusic'
+    fPlayerAnimRate = 1
+    fEnemyAnimRate = 1
+    vScaleEnemies = (X=1,Y=1,Z=1)
+    vScalePlayer = (X=1,Y=1,Z=1)
+    SmallRandomTime = 5
+    MediumRandomTime = 15
+    LargeRandomTime = 30
+    OneBatteryMode = true
+    FastEnemyMode = true
+    DisCamMode = false
+    OneShotMode = true
+    BadBatteryMode = true
+    LimitedStaminaMode = true
+    NoDarkMode = true
+    SmartAIMode = true
+    TrainingMode = false
+    AlwaysSaveCheckpoint = false
+    CustomPM = "Default"
+    InputClass = Class'PickerInput'
+    CheatClass = Class'OLCheatManager'
+    TeleportSound = SoundCue'PickerDebugMenu.TeleportSound'
+    ButtonSound = SoundCue'PickerDebugMenu.Button_Click'
+    MenuMusic = SoundCue'PickerDebugMenu.MenuMusic'
 }

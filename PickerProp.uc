@@ -1,4 +1,4 @@
-class PickerProp extends StaticMeshActor;
+Class PickerProp extends StaticMeshActor;
 
 //var() export editinline StaticMeshComponent PickerMesh;
 DefaultProperties
