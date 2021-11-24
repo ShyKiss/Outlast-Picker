@@ -485,7 +485,7 @@ Event PickerFunc() {
                 AddButton(ButtonLoc("DisableAI") @ Controller.bDisAI, "ToggleDisAI" @ RussianBool(bForceFuncs),, true);
                 AddButton(ButtonLoc("TpEnemy"), "TeleportEnemyToPlayer",, true);
                 AddButton(ButtonLoc("ScaleEnemies") @ Controller.vScaleEnemies, "ScaleEnemy ",, true,,, true);
-                AddButton(ButtonLoc("ChrisModel") @ ChrisString, "ToggleChangeChris ",, true,,, true);
+                AddButton(ButtonLoc("ChrisModel") @ ChrisString, "ChangeChrisModel ",, true,,, true);
                 AddButton(ButtonLoc("EnemyAnimationSpeed") @ Controller.fEnemyAnimRate, "EnemyAnimRate ",, true,,, true);
                 AddButton(ButtonLoc("Force") @ bForceFuncs, "ToggleForceFuncs",, true);
                 AddButton(ButtonLoc("GoBack"), "SetMenu Normal", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
