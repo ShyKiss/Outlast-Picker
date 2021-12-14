@@ -17,6 +17,13 @@ Event Tick(Float DeltaTime) {
         return;
     }
 
+    if(PickerInput(Controller.PlayerInput).IsKeyPressed('LeftControl')) {
+        PickerInput(Controller.PlayerInput).bCtrlPressed = true;
+    }
+    else {
+        PickerInput(Controller.PlayerInput).bCtrlPressed = false;
+    }
+
     if(Controller.bAutoBunnyHop) {
         Controller.ConsoleCommand("PressedJump");
     }

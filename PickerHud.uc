@@ -23,6 +23,7 @@ enum Menu {
     World,
     WDoors,
     WDoorsMT,
+    WDoorsMTMS,
     Enemy,
     AddE,
     AddESpawn,
@@ -40,17 +41,18 @@ enum Menu {
     DisInsanePlus
 };
 
-var Bool ToggleHUD, Pressed, AlreadyCommited, TSVBool;
+var Bool ToggleHUD, Pressed, AlreadyCommited, TSVBool, MathTasksHUD;
 var Array<ButtonStr> Buttons;
 var ButtonStr PrevButton;
 var Menu CurrentMenu;
+var RGBA PushColor;
 var PickerInput PickerInput;
 var Config Bool DisableClickSound, DisableTeleportSound, DisablePause, DisablePickerDebug, DisableTimerDebug, DisableMenuMusic, DisableAllActorInfo, DisablePickerMessages, DisableButtonDescs, bForceFuncs, HudShouldAttack, bPauseFocus, TimersStop;
 var Config Int SpawnEnemyCount;
-var Config String HudWeaponToUse;
-var String Name, Version, Stamina, ButtonDesc, FinalDesc, TimerTime,  PlayerDebug, Command, TrainingMode, IndGodMode, IndNoclip, IndGhost, IndFreecam;
+var Config String HudWeaponToUse, SndDoorMat;
+var String Name, Version, Stamina, ButtonDesc, FinalDesc, TimerTime,  PlayerDebug, Command, TrainingMode, IndGodMode, IndNoclip, IndGhost, IndFreecam, MathTasksOperation, StrPushMessage;
 var Float TimerTimeSeconds, AudioVolume;
-var Config Float TimersTime;
+var Config Float TimersTime, AllActorInfoDistance;
 
 /**************MENU TAGS**************/
 var String DebugFuncs, PlayerFuncs, EnemyFuncs, WorldFuncs, SettingsFuncs, DoorsFuncs, AddFuncs, TimerFuncs, AddLightFuncs, AddEnemyFuncs, AddPropFuncs, AddPOFuncs, OtherFuncs, OTimersFuncs, InsaneChoiceFuncs, RandomizerChoiceFuncs;
@@ -133,21 +135,47 @@ Exec Function ToggleEnemyShouldAttack() {
     HudShouldAttack = !HudShouldAttack;
 }
 
-/************************MAIN HUD FUNCTION************************/
+Exec Function ToggleChangeDoorSndMat(Name SndMat) {
+    local PickerController Controller;
 
-Function DrawHUD() {
+    Controller = PickerController(PlayerOwner);
+    Switch(SndMat) {
+        case 'Wood':
+            break;
+        case 'Metal':
+            break;
+        case 'SecurityDoor':
+            break;
+        case 'BigPrisonDoor':
+            break;
+        case 'BigWoodenDoor':
+            break;
+        Default:
+            Controller.SendMsg("Wrong Door Sound Material! Available:\nWood\nMetal\nSecurityDoor\nBigPrisonDoor\nBigWoodenDoor");
+            return;
+            break;
+    }
+    SndDoorMat = String(SndMat);
+}
+
+Function PostRender() {
     local PickerController Controller;
     local OLGame CurrentGame;
     local PickerInput PlayerInput;
     local PickerHero PickerPawn;
     local OLProfileSettings ProfileSettings;
-    local String GameType, HealthPlayer, PylonInfo, AllActorInfo, Name, FloorMaterial;
-    local Vector CameraPos;
-    local Actor A;
+    local String GameType, HealthPlayer, PylonInfo, AllActorInfo, Name, FloorMaterial, SMName, PickObjectName;
+    local Vector CameraPos, PickObjectLocation, PickObjectNormal;
+    local Vector2D PushCenter;
+    local Actor A, PickObject;
     local OLEnemyPawn Enemy;
     local Rotator CameraRot;
+    local StaticMeshActor TempSMA;
+    local StaticMeshCollectionActor TempSMCA;
+    local StaticMeshComponent TempSMC;
+    local Int IndexSM;
 
-    Super.DrawHUD();
+    Super.PostRender();
     Canvas.Font = Font'PickerDebugMenu.PickerFont';
     Controller = PickerController(PlayerOwner);
     CurrentGame = PickerGame(WorldInfo.Game);
@@ -244,8 +272,25 @@ Function DrawHUD() {
     else {
         IndGhost = "";
     }
+    //PushCenter = Vect2D(0 + (0 - (Canvas.SizeX / 2)) / 2, 0 + (0 - (Canvas.SizeY / 2)) / 2);
+    PushCenter = Vect2D(Canvas.SizeX / 1.02, 25);
+    DrawString(StrPushMessage, PushCenter, PushColor, Vect2D(2.4, 2.4),, true);
+    Foreach TraceActors(Class'Actor', PickObject, PickObjectLocation, PickObjectNormal, CameraPos + (Normal(Vector(CameraRot)) * 10000), CameraPos) {
+    //PickObject = Trace(PickObjectLocation, PickObjectNormal, CameraPos + (Normal(Vector(CameraRot)) * 10000, CameraPos));
+        if(PickObject.Class == Class'StaticMeshActor') {
+            PickObjectName = String(PickObject.Name);
+            SMName = String(StaticMeshActor(PickObject).StaticMeshComponent.StaticMesh);
+        }
+        if(PickObject.Class == Class'StaticMeshCollectionActor') {
+            Foreach StaticMeshCollectionActor(PickObject).StaticMeshComponents(TempSMC) {
+                PickObjectName = String(PickObject.Name);
+                SMName = SMName @ String(TempSMC.StaticMesh) @ "1";
+               // ++IndexSM;
+            }
+        }
+    }
     Name = "[Picker]" $ IndGodMode $ IndFreecam $ IndNoclip $ IndGhost;
-    PlayerDebug = DbgLoc("Random") @ Controller.RandString(Controller.RandByte(35)) $ DbgLoc("Velocity") @ PickerPawn.Velocity @ "(" $ PickerPawn.CurrentRunSpeed $")" @ DbgLoc("Floor") @ FloorMaterial $ DbgLoc("PlayerPosRot") @ PickerPawn.Location $ "/" $ PickerPawn.Rotation.Yaw * 0.005493 $ DbgLoc("CameraPosRot") @ CameraPos $ "/" $ CameraRot.Yaw * 0.005493 $ DbgLoc("Game") @ GameType @ DbgLoc("Health") @ HealthPlayer @ DbgLoc("Limp") @ PickerPawn.bLimping @ DbgLoc("Hobble") @ PickerPawn.bHobbling $ "/" $ PickerPawn.Hobblingintensity $ DbgLoc("CPObj") @ CurrentGame.CurrentCheckpointName $ "/" $ Controller.CurrentObjective $ DbgLoc("FOV") @ PickerPawn.DefaultFOV $ "/" $ PickerPawn.RunningFOV $ "/" $ PickerPawn.CamcorderMaxFOV $ DbgLoc("EnemyDist") @ Controller.AIDistance * 100 @ DbgLoc("PhysLoc") @ PickerPawn.Physics $ "/" $ PickerPawn.LocomotionMode;
+    PlayerDebug = DbgLoc("Random") @ Controller.RandString(Controller.RandByte(35)) $ DbgLoc("Velocity") @ PickerPawn.Velocity @ "(" $ PickerPawn.CurrentRunSpeed $")" @ DbgLoc("Floor") @ FloorMaterial $ DbgLoc("PlayerPosRot") @ PickerPawn.Location $ "/" $ PickerPawn.Rotation.Yaw * 0.005493 $ DbgLoc("CameraPosRot") @ CameraPos $ "/" $ CameraRot.Yaw * 0.005493 $ DbgLoc("Game") @ GameType @ DbgLoc("Health") @ HealthPlayer @ DbgLoc("Limp") @ PickerPawn.bLimping @ DbgLoc("Hobble") @ PickerPawn.bHobbling $ "/" $ PickerPawn.Hobblingintensity $ DbgLoc("CPObj") @ CurrentGame.CurrentCheckpointName $ "/" $ Controller.CurrentObjective $ DbgLoc("FOV") @ PickerPawn.DefaultFOV $ "/" $ PickerPawn.RunningFOV $ "/" $ PickerPawn.CamcorderMaxFOV $ DbgLoc("EnemyDist") @ Controller.AIDistance * 100 @ DbgLoc("PhysLoc") @ PickerPawn.Physics $ "/" $ PickerPawn.LocomotionMode $ "\nLook At:" @ PickObjectName @ "(" $ SMName $ ")";
     Stamina = DbgLoc("Stamina") @ Controller.InsanePlusStamina;
     if(!DisableAllActorInfo) {
         Foreach AllActors(Class'Actor', A) {
@@ -256,7 +301,7 @@ Function DrawHUD() {
                     break;
                 Default:
                     AllActorInfo = A.Name $ "\n" $ A.Location $ "\n" $ A.Rotation * 0.005493;
-                    DrawTextInWorld(AllActorInfo, A.Location, 2000, 210, Vect(0,0,0));
+                    DrawTextInWorld(AllActorInfo, A.Location, AllActorInfoDistance, 210, Vect(0,0,0));
                     break;
             }
         }
@@ -276,7 +321,7 @@ Function DrawHUD() {
         DrawString(Stamina, Vect2D(5, 20),MakeRGBA(0,0,240,240),Vect2D(1.7, 1.7));
     }
     PTimer(0.016);
-    if(ToggleHUD) {
+    if(ToggleHUD || MathTasksHUD) {
         PickerFunc();
         return;
     }
@@ -359,6 +404,10 @@ Event PickerFunc() {
             ButtonDesc = "RandomizerChoiceFuncs";
             FinalDesc = DescLoc(ButtonDesc);
             break;
+        case "NothingFuncs":
+            ButtonDesc = "NothingFuncs";
+            FinalDesc = "";
+            break;
     }
 
     /*DebugFuncs = "------------- Debug Functions -------------\n \nShow AI - Show/Hide AI Info\nShow FPS - Show/Hide FPS\nShow LEVELS - Show/Hide Loaded Parts of Levels\nShow BSP - Show/Hide Brushes\nShow STATICMESHES - Show/Hide Static Meshes\nShow SKELETALMESHES - Show/Hide Skeletal Meshes\nShow PATHS - Show/Hide Enemies Paths\nShow BOUNDS - Show/Hide Actors Bounds\nShow COLLISION - Show/Hide Actors Collision\nShow VOLUMES - Show/Hide Volumes\nShow FOG - Show/Hide Fog\nShow POSTPROCESS - Show/Hide Postprocess\nShow LEVELCOLORATION - Show/Hide Actors Colors\nUncap FPS - Remove Limiter FPS\n \n--------------------------";
@@ -420,6 +469,11 @@ Event PickerFunc() {
     Canvas.Font = Font'PickerDebugMenu.PickerFont';
     //Canvas.DrawRect(500 / 1280.0f * Canvas.SizeX , 12 / 720.0f * Canvas.SizeY);
     DrawBox(Vect2D(265, 130), Vect2D(750, 15), MakeRGBA(45, 45, 45, 230));
+    if(MathTasksHUD && Controller.MathTasksTimer) {
+        DrawString(">" @ Controller.MathTasksGlobalA @ MathTasksOperation @ Controller.MathTasksGlobalB @ "=" @ PlayerInput.MathTasksAnswer $ "_", Vect2D(399, 196.5), MakeRGBA(170, 170, 170, 255), Vect2D(1.8, 1.8));
+        AddButton(String(10 - WorldInfo.Game.GetTimerCount('MathTasksCheck', Controller)), "", Vect2D(285, 165),, StartClip, EndClip);
+        return;
+    }
     if(!Controller.InsanePlusState) {
         //DrawString(">" @ Command $ "_", Vect2D(590, 375), MakeRGBA(170,170,170,255));
         DrawString(">" @ Command $ "_", Vect2D(399, 196.5), MakeRGBA(170, 170, 170, 255), Vect2D(1.8, 1.8));
@@ -428,7 +482,7 @@ Event PickerFunc() {
         }
         Switch(CurrentMenu) {
             case Normal:
-                AddButton(ButtonLoc("DebugFunctions"), "SetMenu ShowDebug DebugFuncs", Vect2D(285, 165),, StartClip, EndClip,,);
+                AddButton(ButtonLoc("DebugFunctions"), "SetMenu ShowDebug DebugFuncs", Vect2D(285, 165),, StartClip, EndClip);
                 AddButton(ButtonLoc("PlayerFunctions"), "SetMenu Player PlayerFuncs",, true,,,,);
                 AddButton(ButtonLoc("EnemyFunctions"), "SetMenu Enemy EnemyFuncs",, true);
                 AddButton(ButtonLoc("WorldFunctions"), "SetMenu World WorldFuncs",, true);
@@ -458,7 +512,7 @@ Event PickerFunc() {
                 AddButton(ButtonLoc("FREEZESTREAMING"), "FREEZESTREAMING",, true);
                 AddButton(ButtonLoc("SHOWMIPLEVELS"), "SHOWMIPLEVELS",, true);
                 AddButton(ButtonLoc("UncapFPS"), "Uncapfps",, true);
-                AddButton(ButtonLoc("GoBack"), "SetMenu Normal", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
+                AddButton(ButtonLoc("GoBack"), "SetMenu Normal NothingFuncs", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
                 break;
             case Player:
                 AddButton(ButtonLoc("GodMode") @ PickerPawn.bGodMode, "ToggleGodMode", Vect2D(285, 165),, StartClip, EndClip);
@@ -478,7 +532,7 @@ Event PickerFunc() {
                 AddButton(ButtonLoc("PlayerModel") @ PlayerModelString, "ChangePlayerModel ",, true,,, true);
                 AddButton(ButtonLoc("PlayerScale") @ Controller.vScalePlayer, "ScalePlayer ",, true,,, true);
                 AddButton(ButtonLoc("CameraBone") @ PickerPawn.Camera.CameraBoneName, "CameraBone ",, true,,, true);
-                AddButton(ButtonLoc("GoBack"), "SetMenu Normal", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
+                AddButton(ButtonLoc("GoBack"), "SetMenu Normal NothingFuncs", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
                 break;
             case Enemy:
                 AddButton(ButtonLoc("KillEnemy"), "ToggleKillEnemy", Vect2D(285, 165),, StartClip, EndClip);
@@ -488,7 +542,7 @@ Event PickerFunc() {
                 AddButton(ButtonLoc("ChrisModel") @ ChrisString, "ChangeChrisModel ",, true,,, true);
                 AddButton(ButtonLoc("EnemyAnimationSpeed") @ Controller.fEnemyAnimRate, "EnemyAnimRate ",, true,,, true);
                 AddButton(ButtonLoc("Force") @ bForceFuncs, "ToggleForceFuncs",, true);
-                AddButton(ButtonLoc("GoBack"), "SetMenu Normal", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
+                AddButton(ButtonLoc("GoBack"), "SetMenu Normal NothingFuncs", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
                 break;
             case World:
                 AddButton(ButtonLoc("DoorFunctions"), "SetMenu WDoors DoorsFuncs", Vect2D(285, 165),, StartClip, EndClip);
@@ -500,54 +554,65 @@ Event PickerFunc() {
                 AddButton(ButtonLoc("LoadCP"), "Checkpoint ",, true,,, true);
                 AddButton(ButtonLoc("ReloadCP"), "Reload",, true);
                 AddButton(ButtonLoc("LoadFullMap") @ Controller.AllLoadedState, "ToggleLoadLoc",, true);
-                AddButton(ButtonLoc("Gamma") @ Controller.GetGamma(), "SetGamma ",, true,,, true);
+                AddButton(ButtonLoc("Gamma") @ Controller.GetGamma(), "Gamma ",, true,,, true);
                 AddButton(ButtonLoc("Gravity") @ WorldInfo.WorldGravityZ, "SetGravity ",, true,,, true);
                 AddButton(ButtonLoc("AudioVolume"), "SetVolume ",, true,,, true);
                 AddButton(ButtonLoc("DestroyClass"), "DelClass ",, true,,, true);
-                AddButton(ButtonLoc("GoBack"), "SetMenu Normal", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
+                AddButton(ButtonLoc("GoBack"), "SetMenu Normal NothingFuncs", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
                 break;
             case WDoors:
                 AddButton(ButtonLoc("DoorsState") @ DoorLockState, "ToggleDoorState" @ RussianBool(bForceFuncs), Vect2D(285, 165),, StartClip, EndClip);
                 AddButton(ButtonLoc("DeleteAllDoors") @ Controller.DoorDelState, "ToggleDoorDelete" @ RussianBool(bForceFuncs),, true);
                 AddButton(ButtonLoc("DoorsType") @ DoorTypeState, "ToggleDoorType" @ RussianBool(bForceFuncs),, true);
-                AddButton(ButtonLoc("DoorsMeshType"), "SetMenu WDoorsMT",, true);
+                AddButton(ButtonLoc("DoorsMeshType"), "SetMenu WDoorsMT NothingFuncs",, true);
                 AddButton(ButtonLoc("Force") @ bForceFuncs, "ToggleForceFuncs",, true);
                 AddButton(ButtonLoc("GoBack"), "SetMenu World WorldFuncs", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
                 break;
             case WDoorsMT:
-                AddButton(ButtonLoc("Wooden"), "ChangeDoorMeshType Wooden", Vect2D(285, 165),, StartClip, EndClip);
-                AddButton(ButtonLoc("WoodenOld"), "ChangeDoorMeshType WoodenOld",, true);
-                AddButton(ButtonLoc("WoodenWindow"), "ChangeDoorMeshType WoodenWindow",, true);
-                AddButton(ButtonLoc("WoodenWindowSmall"), "ChangeDoorMeshType WoodenWindowSmall",, true);
-                AddButton(ButtonLoc("WoodenWindowOld"), "ChangeDoorMeshType WoodenWindowOld",, true);
-                AddButton(ButtonLoc("WoodenWindowOldSmall"), "ChangeDoorMeshType WoodenWindowOldSmall",, true);
-                AddButton(ButtonLoc("WoodenWindowBig"), "ChangeDoorMeshType WoodenWindowBig",, true);
-                AddButton(ButtonLoc("Metal"), "ChangeDoorMeshType Metal",, true);
-                AddButton(ButtonLoc("MetalWindow"), "ChangeDoorMeshType MetalWindow",, true);
-                AddButton(ButtonLoc("MetalWindowSmall"), "ChangeDoorMeshType MetalWindowSmall",, true);
-                AddButton(ButtonLoc("Enforced"), "ChangeDoorMeshType Enforced",, true);
-                AddButton(ButtonLoc("Grid"), "ChangeDoorMeshType Grid",, true);
-                AddButton(ButtonLoc("Prison"), "ChangeDoorMeshType Prison",, true);
-                AddButton(ButtonLoc("Entrance"), "ChangeDoorMeshType Entrance",, true);
-                AddButton(ButtonLoc("Bathroom"), "ChangeDoorMeshType Bathroom",, true);
-                AddButton(ButtonLoc("IsolatedCell"), "ChangeDoorMeshType IsolatedCell",, true);
-                AddButton(ButtonLoc("Locker"), "ChangeDoorMeshType Locker",, true);
-                AddButton(ButtonLoc("LockerRusted"), "ChangeDoorMeshType LockerRusted",, true);
-                AddButton(ButtonLoc("LockerBeige"), "ChangeDoorMeshType LockerBeige",, true);
-                AddButton(ButtonLoc("LockerGreen"), "ChangeDoorMeshType LockerGreen",, true);
-                AddButton(ButtonLoc("LockerHole"), "ChangeDoorMeshType LockerHole",, true);
-                AddButton(ButtonLoc("Glass"), "ChangeDoorMeshType Glass",, true);
-                AddButton(ButtonLoc("Fence"), "ChangeDoorMeshType Fence",, true);
+                AddButton(ButtonLoc("Wooden"), "ChangeDoorMeshType Wooden" @ SndDoorMat, Vect2D(285, 165),, StartClip, EndClip);
+                AddButton(ButtonLoc("WoodenOld"), "ChangeDoorMeshType WoodenOld" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("WoodenWindow"), "ChangeDoorMeshType WoodenWindow" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("WoodenWindowSmall"), "ChangeDoorMeshType WoodenWindowSmall" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("WoodenWindowOld"), "ChangeDoorMeshType WoodenWindowOld" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("WoodenWindowOldSmall"), "ChangeDoorMeshType WoodenWindowOldSmall" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("WoodenWindowBig"), "ChangeDoorMeshType WoodenWindowBig" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("Metal"), "ChangeDoorMeshType Metal" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("MetalWindow"), "ChangeDoorMeshType MetalWindow" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("MetalWindowSmall"), "ChangeDoorMeshType MetalWindowSmall" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("Enforced"), "ChangeDoorMeshType Enforced" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("Grid"), "ChangeDoorMeshType Grid" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("Prison"), "ChangeDoorMeshType Prison" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("Entrance"), "ChangeDoorMeshType Entrance" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("Bathroom"), "ChangeDoorMeshType Bathroom" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("IsolatedCell"), "ChangeDoorMeshType IsolatedCell" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("Locker"), "ChangeDoorMeshType Locker" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("LockerRusted"), "ChangeDoorMeshType LockerRusted" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("LockerBeige"), "ChangeDoorMeshType LockerBeige" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("LockerGreen"), "ChangeDoorMeshType LockerGreen" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("LockerHole"), "ChangeDoorMeshType LockerHole" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("Glass"), "ChangeDoorMeshType Glass" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("Fence"), "ChangeDoorMeshType Fence" @ SndDoorMat,, true);
+                AddButton(ButtonLoc("ChangeDoorSndMat"), "SetMenu WDoorsMTMS NothingFuncs",, true);
                 AddButton(ButtonLoc("GoBack"), "SetMenu WDoors DoorsFuncs", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
+                break;
+            case WDoorsMTMS:
+                AddButton(ButtonLoc("WoodSndMat"), "ToggleChangeDoorSndMat Wood", Vect2D(285, 165),, StartClip, EndClip);
+                AddButton(ButtonLoc("BigWoodSndMat"), "ToggleChangeDoorSndMat BigWoodenDoor",, true);
+                AddButton(ButtonLoc("MetalSndMat"), "ToggleChangeDoorSndMat Metal",, true);
+                AddButton(ButtonLoc("SecuritySndMat"), "ToggleChangeDoorSndMat SecurityDoor",, true);
+                AddButton(ButtonLoc("PrisonSndMat"), "ToggleChangeDoorSndMat BigPrisonDoor",, true);
+                AddButton(ButtonLoc("GoBack"), "SetMenu WDoorsMT NothingFuncs", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
                 break;
             case Other:
                 AddButton(ButtonLoc("FinishGame"), "FinishGame ", Vect2D(285, 165),, StartClip, EndClip, true);
                 AddButton(ButtonLoc("InsanePlus"), "SetMenu InsaneChoice InsaneChoiceFuncs",, true);
                 AddButton(ButtonLoc("Randomizer"), "SetMenu RandomizerChoice RandomizerChoiceFuncs",, true);
+                AddButton(ButtonLoc("MathTasks"), "ToggleMathTasks",, true);
+                AddButton(ButtonLoc("CrabGame"), "ToggleCrabGame",, true);
                 AddButton(ButtonLoc("ActorsBasePlayer"), "BaseSelf",, true);
                 AddButton(ButtonLoc("KAActor"), "KAActor",, true);
-                AddButton(ButtonLoc("TimersMenu"), "SetMenu OTimers OTimersFuncs",, true);
-                AddButton(ButtonLoc("GoBack"), "SetMenu Normal", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
+                AddButton(ButtonLoc("TimersMenu"), "SetMenu OTimers NothingFuncs",, true);
+                AddButton(ButtonLoc("GoBack"), "SetMenu Normal NothingFuncs", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
                 break;
             case OTimers:
                 AddButton(ButtonLoc("ToggleRandLightColor"), "ToggleRandLightColor" @ TimersTime @ RussianBool(TimersStop), Vect2D(285, 165),, StartClip, EndClip);
@@ -561,11 +626,11 @@ Event PickerFunc() {
                 AddButton(ButtonLoc("Light"), "SetMenu AddL AddLightFuncs", Vect2D(285, 165),, StartClip, EndClip);
                 AddButton(ButtonLoc("Enemy"), "SetMenu AddE AddEnemyFuncs",, true);
                 AddButton(ButtonLoc("Prop"), "SetMenu AddP AddPropFuncs",, true);
-                AddButton(ButtonLoc("PickableObjects"), "SetMenu AddPO AddPOFuncs",, true);
-                AddButton(ButtonLoc("GoBack"), "SetMenu Normal",Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
+                AddButton(ButtonLoc("PickableObjects"), "SetMenu AddPO NothingFuncs",, true);
+                AddButton(ButtonLoc("GoBack"), "SetMenu Normal NothingFuncs",Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
                 break;
             case AddE:
-                AddButton(ButtonLoc("SpawnEnemy"), "SetMenu AddESpawn", Vect2D(285, 165),, StartClip, EndClip);
+                AddButton(ButtonLoc("SpawnEnemy"), "SetMenu AddESpawn NothingFuncs", Vect2D(285, 165),, StartClip, EndClip);
                 AddButton(ButtonLoc("RemoveAllEnemies"), "KillEnemy",, true);
                 AddButton(ButtonLoc("GoBack"), "SetMenu Add AddFuncs",Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
                 break;
@@ -596,7 +661,7 @@ Event PickerFunc() {
                 AddButton(ButtonLoc("Simple2OneEye"), "SpawnEnemy Patient_Simple2OneEye" @ SpawnEnemyCount @ HudWeaponToUse @ RussianBool(HudShouldAttack),, true);
                 AddButton(ButtonLoc("Simple2MutArms"), "SpawnEnemy Patient_Simple2MutArms" @ SpawnEnemyCount @ HudWeaponToUse @ RussianBool(HudShouldAttack),, true);
                 AddButton(ButtonLoc("Simple2Mouth"), "SpawnEnemy Patient_Simple2Mouth" @ SpawnEnemyCount @ HudWeaponToUse @ RussianBool(HudShouldAttack),, true);
-                AddButton(ButtonLoc("Simple2MutHead2"), "SpawnEnemy Patient_Simple2MutHead2" @ SpawnEnemyCount @ HudWeaponToUse @ RussianBool(HudShouldAttack),, true);
+                AddButton(ButtonLoc("Simple2MutHead2"), "SpawnEnemy Patient_Simple2MutHead" @ SpawnEnemyCount @ HudWeaponToUse @ RussianBool(HudShouldAttack),, true);
                 AddButton(ButtonLoc("Simple2MutHeadArms"), "SpawnEnemy Patient_Simple2MutHeadArms" @ SpawnEnemyCount @ HudWeaponToUse @ RussianBool(HudShouldAttack),, true);
                 AddButton(ButtonLoc("Simple2MutArmsNoEyes"), "SpawnEnemy Patient_Simple2MutArmsNoEyes" @ SpawnEnemyCount @ HudWeaponToUse @ RussianBool(HudShouldAttack),, true);
                 AddButton(ButtonLoc("Simple2PuffyJeans"), "SpawnEnemy Patient_Simple2PuffyJeans" @ SpawnEnemyCount @ HudWeaponToUse @ RussianBool(HudShouldAttack),, true);
@@ -630,7 +695,7 @@ Event PickerFunc() {
                 AddButton(ButtonLoc("Dupont2"), "SpawnEnemy Patient_Dupont2" @ SpawnEnemyCount @ HudWeaponToUse @ RussianBool(HudShouldAttack),, true);
                 AddButton(ButtonLoc("PyroManic"), "SpawnEnemy Patient_PyroManic" @ SpawnEnemyCount @ HudWeaponToUse @ RussianBool(HudShouldAttack),, true);
                 AddButton(ButtonLoc("RapeVictim"), "SpawnEnemy Patient_RapeVictim" @ SpawnEnemyCount @ HudWeaponToUse @ RussianBool(HudShouldAttack),, true);
-                AddButton(ButtonLoc("GoBack"), "SetMenu AddESpawn", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
+                AddButton(ButtonLoc("GoBack"), "SetMenu AddESpawn NothingFuncs", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
                 break;
             case AddESpawnWeapons:
                 AddButton(ButtonLoc("Weapon_None"), "ToggleWeaponForEnemy Weapon_None", Vect2D(285, 165),, StartClip, EndClip);
@@ -642,7 +707,7 @@ Event PickerFunc() {
                 AddButton(ButtonLoc("Weapon_Pipe"), "ToggleWeaponForEnemy Weapon_Pipe",, true);
                 AddButton(ButtonLoc("Weapon_WoodPlank"), "ToggleWeaponForEnemy Weapon_WoodPlank",, true);
                 AddButton(ButtonLoc("Weapon_CannibalDrill"), "ToggleWeaponForEnemy Weapon_CannibalDrill",, true);
-                AddButton(ButtonLoc("GoBack"), "SetMenu AddESpawn", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
+                AddButton(ButtonLoc("GoBack"), "SetMenu AddESpawn NothingFuncs", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
                 break;
             case AddL:
                 AddButton(ButtonLoc("AddPointLight"), "MadeLight ", Vect2D(285, 165),, StartClip, EndClip, true);
@@ -685,7 +750,7 @@ Event PickerFunc() {
                 AddButton(ButtonLoc("ShowMessages") @ !DisablePickerMessages, "TogglePickerMessages",, true);
                 AddButton(ButtonLoc("MenuMusic") @ !DisableMenuMusic, "ToggleMenuMusic",, true);
                 AddButton(ButtonLoc("ButtonDescs") @ !DisableButtonDescs, "ToggleButtonDescs",, true);
-                AddButton(ButtonLoc("GoBack"), "SetMenu Normal", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
+                AddButton(ButtonLoc("GoBack"), "SetMenu Normal NothingFuncs", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
                 break;
             case STimer:
                 AddButton(ButtonLoc("ToggleTimer") @ Controller.bTimer, "ToggleTimer", Vect2D(285, 165),, StartClip, EndClip);
@@ -720,12 +785,12 @@ Event PickerFunc() {
     //DrawString(String(PlayerInput.MousePos.X) @ String(PlayerInput.MousePos.Y), Vect2D(PlayerInput.MousePos.X, PlayerInput.MousePos.Y), MakeRGBA(255, 255, 255, 225), Vect2D(1, 1));
 }
 
-Function String RussianBool(coerce String Bool) {
-    if(Bool ~= "False" || Bool ~= "Нет") {
-        return "False";
+Function String RussianBool(Bool Bool) {
+    if(Bool) {
+        return "True";
     }
     else {
-        return "True";
+        return "False";
     }
 }
 
@@ -735,27 +800,29 @@ Function PTimer(Float DeltaTime) {
     local String Hours, Minutes, Seconds, HundredthsOfASecond, DisplayedTime;
 
     Controller = PickerController(PlayerOwner);
-    if(Controller.bResetTimer) {Controller.bResetTimer=false; TotalSeconds=0; TimerTimeSeconds=0;}
-    if(Controller.bTimer) {TimerTimeSeconds += DeltaTime;}
+    if(Controller.bResetTimer) {
+        Controller.bResetTimer = false;
+        TotalSeconds=0;
+        TimerTimeSeconds=0;
+    }
+    if(Controller.bTimer) {
+        TimerTimeSeconds += DeltaTime;
+    }
     TotalSeconds = FFloor(TimerTimeSeconds);
     HundredthsOfASecond = String(FFloor((TimerTimeSeconds - Float(TotalSeconds)) * Float(100)));
     Seconds = String(TotalSeconds % 60);
     Minutes = String((TotalSeconds / 60) % 60);
     Hours = String(TotalSeconds / 3600);
-    if(Len(Hours)  ==  1)
-    {
+    if(Len(Hours)  ==  1) {
         Hours = "0" $ Hours;
     }
-    if(Len(Minutes)  ==  1)
-    {
+    if(Len(Minutes)  ==  1) {
         Minutes = "0" $ Minutes;
     }
-    if(Len(Seconds)  ==  1)
-    {
+    if(Len(Seconds)  ==  1) {
         Seconds = "0" $ Seconds;
     }
-    if(Len(HundredthsOfASecond)  ==  1)
-    {
+    if(Len(HundredthsOfASecond)  ==  1) {
         HundredthsOfASecond = "0" $ HundredthsOfASecond;
     }
     DisplayedTime = (((((Hours $ ":") $ Minutes) $ ":") $ Seconds) $ ":") $ HundredthsOfASecond;
@@ -763,6 +830,26 @@ Function PTimer(Float DeltaTime) {
 }
 
 /************************OTHER FUNCTIONS************************/
+
+Exec Function PushMessage(String Msg) {
+    StrPushMessage = Msg;
+    PushColor = MakeRGBA(255, 255, 255, 255);
+   // WorldInfo.Game.ClearTimer('PushMessageShow', Self);
+    WorldInfo.Game.ClearTimer('PushMessageHide', Self);
+   // PushMessageShow();
+    WorldInfo.Game.SetTimer(0.005, true, 'PushMessageHide', Self);
+
+}
+
+Function PushMessageHide() {
+    if(PushColor.Alpha == 0) {
+        StrPushMessage = "";
+        PushColor = MakeRGBA(0,0,0,0);
+        WorldInfo.Game.ClearTimer('PushMessageHide', Self);
+        return;
+    }
+    PushColor.Alpha = PushColor.Alpha - 1;
+}
 
 Event ShowMessage(OLHUD.EHUDMessageType MessageType, String MessageText) {
     local PickerController Controller;
@@ -910,9 +997,9 @@ Event HideObjective() {
     }
 }
 
-Function AddConsoleMessage(string M, class<LocalMessage> InMessageClass, PlayerReplicationInfo PRI, optional float LifeTime)
-{
-	local int Idx, MsgIdx;
+Function AddConsoleMessage(string M, class<LocalMessage> InMessageClass, PlayerReplicationInfo PRI, optional float LifeTime) {
+	local Int Idx, MsgIdx;
+
 	MsgIdx = -1;
 	// check for beep on message receipt
 	if( bMessageBeep && InMessageClass.default.bBeep )
@@ -1147,16 +1234,16 @@ Exec Function Back() {
             Controller.ConsoleCommand("TogglePickerMenu false");
             break;
         case ShowDebug:
-            Controller.ConsoleCommand("SetMenu Normal");
+            Controller.ConsoleCommand("SetMenu Normal NothingFuncs");
             break;
         case Add:
-            Controller.ConsoleCommand("SetMenu Normal");
+            Controller.ConsoleCommand("SetMenu Normal NothingFuncs");
             break;
         case AddL:
             Controller.ConsoleCommand("SetMenu Add AddFuncs");
             break;
         case World:
-            Controller.ConsoleCommand("SetMenu Normal");
+            Controller.ConsoleCommand("SetMenu Normal NothingFuncs");
             break;
         case WDoors:
             Controller.ConsoleCommand("SetMenu World WorldFuncs");
@@ -1164,20 +1251,23 @@ Exec Function Back() {
         case WDoorsMT:
             Controller.ConsoleCommand("SetMenu WDoors DoorsFuncs");
             break;
+        case WDoorsMTMS:
+            Controller.ConsoleCommand("SetMenu WDoorsMT NothingFuncs");
+            break;
         case Enemy:
-            Controller.ConsoleCommand("SetMenu Normal");
+            Controller.ConsoleCommand("SetMenu Normal NothingFuncs");
             break;
         case AddE:
             Controller.ConsoleCommand("SetMenu Add AddFuncs");
             break;
         case AddESpawn:
-            Controller.ConsoleCommand("SetMenu Add AddFuncs");
+            Controller.ConsoleCommand("SetMenu AddE AddEnemyFuncs");
             break;
         case AddESpawnPatient:
-            Controller.ConsoleCommand("SetMenu Add AddESpawn");
+            Controller.ConsoleCommand("SetMenu AddESpawn NothingFuncs");
             break;
         case AddESpawnWeapons:
-            Controller.ConsoleCommand("SetMenu Add AddESpawn");
+            Controller.ConsoleCommand("SetMenu AddESpawn NothingFuncs");
             break;
         case AddP:
             Controller.ConsoleCommand("SetMenu Add AddFuncs");
@@ -1186,16 +1276,16 @@ Exec Function Back() {
             Controller.ConsoleCommand("SetMenu Add AddFuncs");
             break;
         case Settings:
-            Controller.ConsoleCommand("SetMenu Normal");
+            Controller.ConsoleCommand("SetMenu Normal NothingFuncs");
             break;
         case STimer:
             Controller.ConsoleCommand("SetMenu Settings SettingsFuncs");
             break;
         case Player:
-            Controller.ConsoleCommand("SetMenu Normal");
+            Controller.ConsoleCommand("SetMenu Normal NothingFuncs");
             break;
         case Other:
-            Controller.ConsoleCommand("SetMenu Normal");
+            Controller.ConsoleCommand("SetMenu Normal NothingFuncs");
             break;
         case OTimers:
             Controller.ConsoleCommand("SetMenu Other OtherFuncs");
@@ -2600,7 +2690,9 @@ DefaultProperties
     bForceFuncs = false
     SpawnEnemyCount = 1
     HudWeaponToUse = "Weapon_None"
+    SndDoorMat = "Wood"
     TimersTime = 0.3
+    AllActorInfoDistance = 2000.0
     TimersStop = false
     HudShouldAttack = true
     bPauseFocus = false

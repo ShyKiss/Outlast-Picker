@@ -204,13 +204,11 @@ simulated Event PlayFootStepSound(Int FootDown, AnimNotify_Footstep FootstepNoti
             }
         }
         else {
-            Switch(Controller.RandBool()) {
-                case true:
-                    PlayAkEvent(FootStepSound_Walk);
-                    break;
-                case false:
-                    PlayAkEvent(FootStepSound_Run);
-                    break;
+            if(Controller.RandBool()) {
+                PlayAkEvent(FootStepSound_Walk);
+            }
+            else {
+                PlayAkEvent(FootStepSound_Run);
             }
         }
         if(WorldInfo.GetDetailMode() != 0) {
@@ -244,8 +242,7 @@ Event RespawnHero() {
     Engine = OLEngine(Class'Engine'.static.GetEngine());
     Game = PickerGame(WorldInfo.Game);
     CCP = String(Game.CurrentCheckpointName);
-    //PickerController(C).InitPlayerModel();
-    ConsoleCommand("TogglePickerMenu false");
+    Controller.TogglePickerMenu(false);
     if(Controller.bAnimFree) {
         Controller.AnimFree();
     }

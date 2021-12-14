@@ -12,10 +12,12 @@ var Transient OLCheatManager CheatManager;
 var Class<OLCheatManager> CheatClass;
 var Array<Materialinterface> Materials;
 var AudioComponent MenuMusicComponent;
+var PickerPointLight PickerFollowLight;
 var Private String CurrentAddCPGame;
+var Int MathTasksGlobalA, MathTasksGlobalB, MathTasksTempOperation;
 var Bool AIDebug, bDebugFullyGhost, DoorLockState, DoorTypeState, DoorDelState, FreecamState, LightState, ChrisState, BoolKillEnemy, ForceKillEnemy,
 bDefaultPlayer, ForceDisAI, EverytimeLightState, bBhop, bAutoBunnyHop, bFlyMode, bResetTimer, bTimer, bDisAI, bAnimFree, bLMFree, bSMFree, bDark, GroomChrisState,
-SMRandomState, AllLoadedState, InsanePlusState, RandomizerState, LSMDamage, ResetJumpStam, RandomizerFR;
+SMRandomState, AllLoadedState, InsanePlusState, RandomizerState, LSMDamage, ResetJumpStam, RandomizerFR, MathTasksState, MathTasksTimer, bFollowLight, CrabGameState;
 var Float SmallRandomTime, MediumRandomTime, LargeRandomTime;
 var Config Bool DisCamMode, TrainingMode, AlwaysSaveCheckpoint, RandomizerChallengeMode;
 
@@ -867,6 +869,7 @@ Exec Function TeleportEnemyToPlayer(Bool ToPlayer=false) {
 
     if(ToPlayer) {
         C = PickerHero(Pawn).Location + Vect(0,0,10);
+        Rot = PickerHero(Pawn).Rotation;
     }
     else {
         GetPlayerViewPoint(C,Rot); C -= Vect(0,0,120);
@@ -891,194 +894,177 @@ Function BackPawnCol() {
     }
 }
 
-Exec Function Checkpoint(String Checkpoint, Bool Save=AlwaysSaveCheckpoint, Bool Force=false) {
+Exec Function Checkpoint(String Checkpoint, Bool Save=AlwaysSaveCheckpoint) {
     local OLEnemyPawn Enemy;
     local OLCheckpointList FullList, List, List2;
     local PickerGame CGame;
     local Name CPName;
 
     CGame = PickerGame(WorldInfo.Game);
-    /*Foreach AllActors(Class'OLCheckpoint', OLCheckpoint) {
-        if(OLCheckpoint.CheckpointName == Name(Checkpoint) || Force) {
-            PickerHero(Pawn).RespawnHero();
-            Foreach AllActors(Class'OLEnemyPawn', Enemy) {
-                Enemy.Destroy();
-            }
-            if (CGame.IsPlayingDLC()) {
-                ConsoleCommand("StreamMap DLC_Checkpoints");
-            }
-            else {
-                ConsoleCommand("StreamMap intro_Persistent");
-            }
-            StartNewGameAtCheckpoint(Checkpoint, Save);
-            return;
-        }
-    }
-    SendMsg("Wrong Checkpoint!");*/
     List = Spawn(Class'OLCheckpointList');
     List2 = Spawn(Class'OLCheckpointList');
-        List.GameType = OGT_Outlast;
-        List.CheckpointList[0] = 'StartGame';
-        List.CheckpointList[1] = 'Admin_Gates';
-        List.CheckpointList[2] = 'Admin_Garden';
-        List.CheckpointList[3] = 'Admin_Explosion';
-        List.CheckpointList[4] = 'Admin_Mezzanine';
-        List.CheckpointList[5] = 'Admin_MainHall';
-        List.CheckpointList[6] = 'Admin_WheelChair';
-        List.CheckpointList[7] = 'Admin_SecurityRoom';
-        List.CheckpointList[8] = 'Admin_Basement';
-        List.CheckpointList[9] = 'Admin_Electricity';
-        List.CheckpointList[10] = 'Admin_PostBasement';
-        List.CheckpointList[11] = 'Prison_Start';
-        List.CheckpointList[12] = 'Prison_IsolationCells01_Mid';
-        List.CheckpointList[13] = 'Prison_ToPrisonFloor';
-        List.CheckpointList[14] = 'Prison_PrisonFloor_3rdFloor';
-        List.CheckpointList[15] = 'Prison_PrisonFloor_SecurityRoom1';
-        List.CheckpointList[16] = 'Prison_PrisonFloor02_IsolationCells01';
-        List.CheckpointList[17] = 'Prison_Showers_2ndFloor';
-        List.CheckpointList[18] = 'Prison_PrisonFloor02_PostShowers';
-        List.CheckpointList[19] = 'Prison_PrisonFloor02_SecurityRoom2';
-        List.CheckpointList[20] = 'Prison_IsolationCells02_Soldier';
-        List.CheckpointList[21] = 'Prison_IsolationCells02_PostSoldier';
-        List.CheckpointList[22] = 'Prison_OldCells_PreStruggle';
-        List.CheckpointList[23] = 'Prison_OldCells_PreStruggle2';
-        List.CheckpointList[24] = 'Prison_Showers_Exit';
-        List.CheckpointList[25] = 'Sewer_start';
-        List.CheckpointList[26] = 'Sewer_FlushWater';
-        List.CheckpointList[27] = 'Sewer_WaterFlushed';
-        List.CheckpointList[28] = 'Sewer_Ladder';
-        List.CheckpointList[29] = 'Sewer_ToCitern';
-        List.CheckpointList[30] = 'Sewer_Citern1';
-        List.CheckpointList[31] = 'Sewer_Citern2';
-        List.CheckpointList[32] = 'Sewer_PostCitern';
-        List.CheckpointList[33] = 'Sewer_ToMaleWard';
-        List.CheckpointList[34] = 'Male_Start';
-        List.CheckpointList[35] = 'Male_Chase';
-        List.CheckpointList[36] = 'Male_ChasePause';
-        List.CheckpointList[37] = 'Male_Torture';
-        List.CheckpointList[38] = 'Male_TortureDone';
-        List.CheckpointList[39] = 'Male_surgeon';
-        List.CheckpointList[40] = 'Male_GetTheKey';
-        List.CheckpointList[41] = 'Male_GetTheKey2';
-        List.CheckpointList[42] = 'Male_Elevator';
-        List.CheckpointList[43] = 'Male_ElevatorDone';
-        List.CheckpointList[44] = 'Male_Priest';
-        List.CheckpointList[45] = 'Male_Cafeteria';
-        List.CheckpointList[46] = 'Male_SprinklerOff';
-        List.CheckpointList[47] = 'Male_SprinklerOn';
-        List.CheckpointList[48] = 'Courtyard_Start';
-        List.CheckpointList[49] = 'Courtyard_Corridor';
-        List.CheckpointList[50] = 'Courtyard_Chapel';
-        List.CheckpointList[51] = 'Courtyard_Soldier1';
-        List.CheckpointList[52] = 'Courtyard_Soldier2';
-        List.CheckpointList[53] = 'Courtyard_FemaleWard';
-        List.CheckpointList[54] = 'Female_Start';
-        List.CheckpointList[55] = 'Female_Mainchute';
-        List.CheckpointList[56] = 'Female_2ndFloor';
-        List.CheckpointList[57] = 'Female_2ndfloorChute';
-        List.CheckpointList[58] = 'Female_ChuteActivated';
-        List.CheckpointList[59] = 'Female_Keypickedup';
-        List.CheckpointList[60] = 'Female_3rdFloor';
-        List.CheckpointList[61] = 'Female_3rdFloorHole';
-        List.CheckpointList[62] = 'Female_3rdFloorPosthole';
-        List.CheckpointList[63] = 'Female_Tobigjump';
-        List.CheckpointList[64] = 'Female_LostCam';
-        List.CheckpointList[65] = 'Female_FoundCam';
-        List.CheckpointList[66] = 'Female_Chasedone';
-        List.CheckpointList[67] = 'Female_Exit';
-        List.CheckpointList[68] = 'Female_Jump';
-        List.CheckpointList[69] = 'Revisit_Soldier1';
-        List.CheckpointList[70] = 'Revisit_Mezzanine';
-        List.CheckpointList[71] = 'Revisit_ToRH';
-        List.CheckpointList[72] = 'Revisit_RH';
-        List.CheckpointList[73] = 'Revisit_FoundKey';
-        List.CheckpointList[74] = 'Revisit_To3rdfloor';
-        List.CheckpointList[75] = 'Revisit_3rdFloor';
-        List.CheckpointList[76] = 'Revisit_RoomCrack';
-        List.CheckpointList[77] = 'Revisit_ToChapel';
-        List.CheckpointList[78] = 'Revisit_PriestDead';
-        List.CheckpointList[79] = 'Revisit_Soldier3';
-        List.CheckpointList[80] = 'Revisit_ToLab';
-        List.CheckpointList[81] = 'Lab_Start';
-        List.CheckpointList[82] = 'Lab_PremierAirlock';
-        List.CheckpointList[83] = 'Lab_SwarmIntro';
-        List.CheckpointList[84] = 'Lab_SwarmIntro2';
-        List.CheckpointList[85] = 'Lab_Soldierdead';
-        List.CheckpointList[86] = 'Lab_SpeachDone';
-        List.CheckpointList[87] = 'Lab_SwarmCafeteria';
-        List.CheckpointList[88] = 'Lab_EBlock';
-        List.CheckpointList[89] = 'Lab_ToBilly';
-        List.CheckpointList[90] = 'Lab_BigRoom';
-        List.CheckpointList[91] = 'Lab_BigRoomDone';
-        List.CheckpointList[92] = 'Lab_BigTower';
-        List.CheckpointList[93] = 'Lab_BigTowerStairs';
-        List.CheckpointList[94] = 'Lab_BigTowerMid';
-        List.CheckpointList[95] = 'Lab_BigTowerDone';
-        List2.GameType = OGT_Whistleblower;
-        List2.CheckpointList[0] = 'DLC_Start';
-        List2.CheckpointList[1] = 'DLC_Lab_Start';
-        List2.CheckpointList[2] = 'Lab_AfterExperiment';
-        List2.CheckpointList[3] = 'Hospital_Start';
-        List2.CheckpointList[4] = 'Hospital_Free';
-        List2.CheckpointList[5] = 'Hospital_1stFloor_ChaseStart';
-        List2.CheckpointList[6] = 'Hospital_1stFloor_ChaseEnd';
-        List2.CheckpointList[7] = 'Hospital_1stFloor_dropairvent';
-        List2.CheckpointList[8] = 'Hospital_1stFloor_SAS';
-        List2.CheckpointList[9] = 'Hospital_1stFloor_Lobby';
-        List2.CheckpointList[10] = 'Hospital_1stFloor_NeedHandCuff';
-        List2.CheckpointList[11] = 'Hospital_1stFloor_GotKey';
-        List2.CheckpointList[12] = 'Hospital_1stFloor_Chase';
-        List2.CheckpointList[13] = 'Hospital_1stFloor_Crema';
-        List2.CheckpointList[14] = 'Hospital_1stFloor_Bake';
-        List2.CheckpointList[15] = 'Hospital_1stFloor_Crema2';
-        List2.CheckpointList[16] = 'Hospital_2ndFloor_Crema';
-        List2.CheckpointList[17] = 'Hospital_2ndFloor_Canibalrun';
-        List2.CheckpointList[18] = 'Hospital_2ndFloor_Canibalgone';
-        List2.CheckpointList[19] = 'Hospital_2ndFloor_ExitIsLocked';
-        List2.CheckpointList[20] = 'Hospital_2ndFloor_RoomsCorridor';
-        List2.CheckpointList[21] = 'Hospital_2ndFloor_ToLab';
-        List2.CheckpointList[22] = 'Hospital_2ndFloor_Start_Lab_2nd';
-        List2.CheckpointList[23] = 'Hospital_2ndFloor_GazOff';
-        List2.CheckpointList[24] = 'Hospital_2ndFloor_Labdone';
-        List2.CheckpointList[25] = 'Hospital_2ndFloor_Exit';
-        List2.CheckpointList[26] = 'Courtyard1_Start';
-        List2.CheckpointList[27] = 'Courtyard1_RecreationArea';
-        List2.CheckpointList[28] = 'Courtyard1_DupontIntro';
-        List2.CheckpointList[29] = 'Courtyard1_Basketball';
-        List2.CheckpointList[30] = 'Courtyard1_SecurityTower';
-        List2.CheckpointList[31] = 'PrisonRevisit_Start';
-        List2.CheckpointList[32] = 'PrisonRevisit_Radio';
-        List2.CheckpointList[33] = 'PrisonRevisit_Priest';
-        List2.CheckpointList[34] = 'PrisonRevisit_Tochase';
-        List2.CheckpointList[35] = 'PrisonRevisit_Chase';
-        List2.CheckpointList[36] = 'Courtyard2_Start';
-        List2.CheckpointList[37] = 'Courtyard2_FrontBuilding2';
-        List2.CheckpointList[38] = 'Courtyard2_ElectricityOff';
-        List2.CheckpointList[39] = 'Courtyard2_ElectricityOff_2';
-        List2.CheckpointList[40] = 'Courtyard2_ToWaterTower';
-        List2.CheckpointList[41] = 'Courtyard2_WaterTower';
-        List2.CheckpointList[42] = 'Courtyard2_TopWaterTower';
-        List2.CheckpointList[43] = 'Building2_Start';
-        List2.CheckpointList[44] = 'Building2_Attic_Mid';
-        List2.CheckpointList[45] = 'Building2_Attic_Denis';
-        List2.CheckpointList[46] = 'Building2_Floor3_1';
-        List2.CheckpointList[47] = 'Building2_Floor3_2';
-        List2.CheckpointList[48] = 'Building2_Floor3_3';
-        List2.CheckpointList[49] = 'Building2_Floor3_4';
-        List2.CheckpointList[50] = 'Building2_Elevator';
-        List2.CheckpointList[51] = 'Building2_Post_Elevator';
-        List2.CheckpointList[52] = 'Building2_Torture';
-        List2.CheckpointList[53] = 'Building2_TortureDone';
-        List2.CheckpointList[54] = 'Building2_Garden';
-        List2.CheckpointList[55] = 'Building2_Floor1_1';
-        List2.CheckpointList[56] = 'Building2_Floor1_2';
-        List2.CheckpointList[57] = 'Building2_Floor1_3';
-        List2.CheckpointList[58] = 'Building2_Floor1_4';
-        List2.CheckpointList[59] = 'Building2_Floor1_5';
-        List2.CheckpointList[60] = 'Building2_Floor1_5b';
-        List2.CheckpointList[61] = 'Building2_Floor1_6';
-        List2.CheckpointList[62] = 'MaleRevisit_Start';
-        List2.CheckpointList[63] = 'AdminBlock_Start';
+    List.GameType = OGT_Outlast;
+    List.CheckpointList[0] = 'StartGame';
+    List.CheckpointList[1] = 'Admin_Gates';
+    List.CheckpointList[2] = 'Admin_Garden';
+    List.CheckpointList[3] = 'Admin_Explosion';
+    List.CheckpointList[4] = 'Admin_Mezzanine';
+    List.CheckpointList[5] = 'Admin_MainHall';
+    List.CheckpointList[6] = 'Admin_WheelChair';
+    List.CheckpointList[7] = 'Admin_SecurityRoom';
+    List.CheckpointList[8] = 'Admin_Basement';
+    List.CheckpointList[9] = 'Admin_Electricity';
+    List.CheckpointList[10] = 'Admin_PostBasement';
+    List.CheckpointList[11] = 'Prison_Start';
+    List.CheckpointList[12] = 'Prison_IsolationCells01_Mid';
+    List.CheckpointList[13] = 'Prison_ToPrisonFloor';
+    List.CheckpointList[14] = 'Prison_PrisonFloor_3rdFloor';
+    List.CheckpointList[15] = 'Prison_PrisonFloor_SecurityRoom1';
+    List.CheckpointList[16] = 'Prison_PrisonFloor02_IsolationCells01';
+    List.CheckpointList[17] = 'Prison_Showers_2ndFloor';
+    List.CheckpointList[18] = 'Prison_PrisonFloor02_PostShowers';
+    List.CheckpointList[19] = 'Prison_PrisonFloor02_SecurityRoom2';
+    List.CheckpointList[20] = 'Prison_IsolationCells02_Soldier';
+    List.CheckpointList[21] = 'Prison_IsolationCells02_PostSoldier';
+    List.CheckpointList[22] = 'Prison_OldCells_PreStruggle';
+    List.CheckpointList[23] = 'Prison_OldCells_PreStruggle2';
+    List.CheckpointList[24] = 'Prison_Showers_Exit';
+    List.CheckpointList[25] = 'Sewer_start';
+    List.CheckpointList[26] = 'Sewer_FlushWater';
+    List.CheckpointList[27] = 'Sewer_WaterFlushed';
+    List.CheckpointList[28] = 'Sewer_Ladder';
+    List.CheckpointList[29] = 'Sewer_ToCitern';
+    List.CheckpointList[30] = 'Sewer_Citern1';
+    List.CheckpointList[31] = 'Sewer_Citern2';
+    List.CheckpointList[32] = 'Sewer_PostCitern';
+    List.CheckpointList[33] = 'Sewer_ToMaleWard';
+    List.CheckpointList[34] = 'Male_Start';
+    List.CheckpointList[35] = 'Male_Chase';
+    List.CheckpointList[36] = 'Male_ChasePause';
+    List.CheckpointList[37] = 'Male_Torture';
+    List.CheckpointList[38] = 'Male_TortureDone';
+    List.CheckpointList[39] = 'Male_surgeon';
+    List.CheckpointList[40] = 'Male_GetTheKey';
+    List.CheckpointList[41] = 'Male_GetTheKey2';
+    List.CheckpointList[42] = 'Male_Elevator';
+    List.CheckpointList[43] = 'Male_ElevatorDone';
+    List.CheckpointList[44] = 'Male_Priest';
+    List.CheckpointList[45] = 'Male_Cafeteria';
+    List.CheckpointList[46] = 'Male_SprinklerOff';
+    List.CheckpointList[47] = 'Male_SprinklerOn';
+    List.CheckpointList[48] = 'Courtyard_Start';
+    List.CheckpointList[49] = 'Courtyard_Corridor';
+    List.CheckpointList[50] = 'Courtyard_Chapel';
+    List.CheckpointList[51] = 'Courtyard_Soldier1';
+    List.CheckpointList[52] = 'Courtyard_Soldier2';
+    List.CheckpointList[53] = 'Courtyard_FemaleWard';
+    List.CheckpointList[54] = 'Female_Start';
+    List.CheckpointList[55] = 'Female_Mainchute';
+    List.CheckpointList[56] = 'Female_2ndFloor';
+    List.CheckpointList[57] = 'Female_2ndfloorChute';
+    List.CheckpointList[58] = 'Female_ChuteActivated';
+    List.CheckpointList[59] = 'Female_Keypickedup';
+    List.CheckpointList[60] = 'Female_3rdFloor';
+    List.CheckpointList[61] = 'Female_3rdFloorHole';
+    List.CheckpointList[62] = 'Female_3rdFloorPosthole';
+    List.CheckpointList[63] = 'Female_Tobigjump';
+    List.CheckpointList[64] = 'Female_LostCam';
+    List.CheckpointList[65] = 'Female_FoundCam';
+    List.CheckpointList[66] = 'Female_Chasedone';
+    List.CheckpointList[67] = 'Female_Exit';
+    List.CheckpointList[68] = 'Female_Jump';
+    List.CheckpointList[69] = 'Revisit_Soldier1';
+    List.CheckpointList[70] = 'Revisit_Mezzanine';
+    List.CheckpointList[71] = 'Revisit_ToRH';
+    List.CheckpointList[72] = 'Revisit_RH';
+    List.CheckpointList[73] = 'Revisit_FoundKey';
+    List.CheckpointList[74] = 'Revisit_To3rdfloor';
+    List.CheckpointList[75] = 'Revisit_3rdFloor';
+    List.CheckpointList[76] = 'Revisit_RoomCrack';
+    List.CheckpointList[77] = 'Revisit_ToChapel';
+    List.CheckpointList[78] = 'Revisit_PriestDead';
+    List.CheckpointList[79] = 'Revisit_Soldier3';
+    List.CheckpointList[80] = 'Revisit_ToLab';
+    List.CheckpointList[81] = 'Lab_Start';
+    List.CheckpointList[82] = 'Lab_PremierAirlock';
+    List.CheckpointList[83] = 'Lab_SwarmIntro';
+    List.CheckpointList[84] = 'Lab_SwarmIntro2';
+    List.CheckpointList[85] = 'Lab_Soldierdead';
+    List.CheckpointList[86] = 'Lab_SpeachDone';
+    List.CheckpointList[87] = 'Lab_SwarmCafeteria';
+    List.CheckpointList[88] = 'Lab_EBlock';
+    List.CheckpointList[89] = 'Lab_ToBilly';
+    List.CheckpointList[90] = 'Lab_BigRoom';
+    List.CheckpointList[91] = 'Lab_BigRoomDone';
+    List.CheckpointList[92] = 'Lab_BigTower';
+    List.CheckpointList[93] = 'Lab_BigTowerStairs';
+    List.CheckpointList[94] = 'Lab_BigTowerMid';
+    List.CheckpointList[95] = 'Lab_BigTowerDone';
+    List2.GameType = OGT_Whistleblower;
+    List2.CheckpointList[0] = 'DLC_Start';
+    List2.CheckpointList[1] = 'DLC_Lab_Start';
+    List2.CheckpointList[2] = 'Lab_AfterExperiment';
+    List2.CheckpointList[3] = 'Hospital_Start';
+    List2.CheckpointList[4] = 'Hospital_Free';
+    List2.CheckpointList[5] = 'Hospital_1stFloor_ChaseStart';
+    List2.CheckpointList[6] = 'Hospital_1stFloor_ChaseEnd';
+    List2.CheckpointList[7] = 'Hospital_1stFloor_dropairvent';
+    List2.CheckpointList[8] = 'Hospital_1stFloor_SAS';
+    List2.CheckpointList[9] = 'Hospital_1stFloor_Lobby';
+    List2.CheckpointList[10] = 'Hospital_1stFloor_NeedHandCuff';
+    List2.CheckpointList[11] = 'Hospital_1stFloor_GotKey';
+    List2.CheckpointList[12] = 'Hospital_1stFloor_Chase';
+    List2.CheckpointList[13] = 'Hospital_1stFloor_Crema';
+    List2.CheckpointList[14] = 'Hospital_1stFloor_Bake';
+    List2.CheckpointList[15] = 'Hospital_1stFloor_Crema2';
+    List2.CheckpointList[16] = 'Hospital_2ndFloor_Crema';
+    List2.CheckpointList[17] = 'Hospital_2ndFloor_Canibalrun';
+    List2.CheckpointList[18] = 'Hospital_2ndFloor_Canibalgone';
+    List2.CheckpointList[19] = 'Hospital_2ndFloor_ExitIsLocked';
+    List2.CheckpointList[20] = 'Hospital_2ndFloor_RoomsCorridor';
+    List2.CheckpointList[21] = 'Hospital_2ndFloor_ToLab';
+    List2.CheckpointList[22] = 'Hospital_2ndFloor_Start_Lab_2nd';
+    List2.CheckpointList[23] = 'Hospital_2ndFloor_GazOff';
+    List2.CheckpointList[24] = 'Hospital_2ndFloor_Labdone';
+    List2.CheckpointList[25] = 'Hospital_2ndFloor_Exit';
+    List2.CheckpointList[26] = 'Courtyard1_Start';
+    List2.CheckpointList[27] = 'Courtyard1_RecreationArea';
+    List2.CheckpointList[28] = 'Courtyard1_DupontIntro';
+    List2.CheckpointList[29] = 'Courtyard1_Basketball';
+    List2.CheckpointList[30] = 'Courtyard1_SecurityTower';
+    List2.CheckpointList[31] = 'PrisonRevisit_Start';
+    List2.CheckpointList[32] = 'PrisonRevisit_Radio';
+    List2.CheckpointList[33] = 'PrisonRevisit_Priest';
+    List2.CheckpointList[34] = 'PrisonRevisit_Tochase';
+    List2.CheckpointList[35] = 'PrisonRevisit_Chase';
+    List2.CheckpointList[36] = 'Courtyard2_Start';
+    List2.CheckpointList[37] = 'Courtyard2_FrontBuilding2';
+    List2.CheckpointList[38] = 'Courtyard2_ElectricityOff';
+    List2.CheckpointList[39] = 'Courtyard2_ElectricityOff_2';
+    List2.CheckpointList[40] = 'Courtyard2_ToWaterTower';
+    List2.CheckpointList[41] = 'Courtyard2_WaterTower';
+    List2.CheckpointList[42] = 'Courtyard2_TopWaterTower';
+    List2.CheckpointList[43] = 'Building2_Start';
+    List2.CheckpointList[44] = 'Building2_Attic_Mid';
+    List2.CheckpointList[45] = 'Building2_Attic_Denis';
+    List2.CheckpointList[46] = 'Building2_Floor3_1';
+    List2.CheckpointList[47] = 'Building2_Floor3_2';
+    List2.CheckpointList[48] = 'Building2_Floor3_3';
+    List2.CheckpointList[49] = 'Building2_Floor3_4';
+    List2.CheckpointList[50] = 'Building2_Elevator';
+    List2.CheckpointList[51] = 'Building2_Post_Elevator';
+    List2.CheckpointList[52] = 'Building2_Torture';
+    List2.CheckpointList[53] = 'Building2_TortureDone';
+    List2.CheckpointList[54] = 'Building2_Garden';
+    List2.CheckpointList[55] = 'Building2_Floor1_1';
+    List2.CheckpointList[56] = 'Building2_Floor1_2';
+    List2.CheckpointList[57] = 'Building2_Floor1_3';
+    List2.CheckpointList[58] = 'Building2_Floor1_4';
+    List2.CheckpointList[59] = 'Building2_Floor1_5';
+    List2.CheckpointList[60] = 'Building2_Floor1_5b';
+    List2.CheckpointList[61] = 'Building2_Floor1_6';
+    List2.CheckpointList[62] = 'MaleRevisit_Start';
+    List2.CheckpointList[63] = 'AdminBlock_Start';
 
     Foreach AllActors(Class'OLCheckpointList', FullList) {
         FullList.GameType = FullList.Default.GameType;
@@ -1103,18 +1089,23 @@ Exec Function Checkpoint(String Checkpoint, Bool Save=AlwaysSaveCheckpoint, Bool
     List2.Destroy();
 }
 
-Exec Function FinishGame(String Game, Bool Finish) {
+Exec Function FinishGame(String Game="Both") {
     Switch(Game) {
         case "Main":
-            ProfileSettings.SetProfileSettingValueId(65, Byte(Finish));
+            ProfileSettings.SetProfileSettingValueId(67, 0);
+            ProfileSettings.SetProfileSettingValueId(65, 1);
             break;
         case "DLC":
-            ProfileSettings.SetProfileSettingValueId(67, Byte(Finish));
+            ProfileSettings.SetProfileSettingValueId(67, 1);
+            ProfileSettings.SetProfileSettingValueId(65, 0);
             break;
         case "Both":
-            ProfileSettings.SetProfileSettingValueId(65, Byte(Finish));
-            ProfileSettings.SetProfileSettingValueId(67, Byte(Finish));
+            ProfileSettings.SetProfileSettingValueId(65, 1);
+            ProfileSettings.SetProfileSettingValueId(67, 1);
             break;
+        case "UnBoth":
+            ProfileSettings.SetProfileSettingValueId(65, 0);
+            ProfileSettings.SetProfileSettingValueId(67, 0);
         Default:
             SendMsg("Wrong Game Name!");
             return;
@@ -1263,6 +1254,32 @@ Exec Function RemoveAllPickerLights() {
         SS.Destroy();
     }
     SendMsg("All Picker Lights are Deleted!");
+}
+
+Exec Function MadeFollowLight(Float Bright=0.7, Float Radius=1024, Byte R=255, Byte G=255, Byte B=255, Byte A=125, Bool Shadows=true) {
+    bFollowLight = !bFollowLight;
+    if(bFollowLight) {
+        PickerFollowLight = Spawn(Class'PickerPointLight', Self,, vect(0,0,0));
+        PickerFollowLight.OnTurn(true);
+        PickerFollowLight.SetBrightness(Bright);
+        PickerFollowLight.SetColor(R,G,B,A);
+        PickerFollowLight.SetRadius(Radius);
+        PickerFollowLight.SetCastDynamicShadows(Shadows);
+        WorldInfo.Game.SetTimer(0.001, true, 'MoveFollowLight', Self);
+    }
+    else {
+        WorldInfo.Game.ClearTimer('MoveFollowLight', Self);
+        PickerFollowLight.Destroy();
+    }
+    
+}
+
+Function MoveFollowLight() {
+    local Vector C;
+    local Rotator Rot;
+
+    GetPlayerViewPoint(C, Rot);
+    PickerFollowLight.SetLocation(C);
 }
 
 Exec Function TogglePickerMenu(Bool Show) {
@@ -1525,7 +1542,7 @@ Exec Function ChangeDoorMeshType(String MeshType, Name CustomSndMat='Default') {
 
     }
     Foreach AllActors(Class'OLDoor', Door) {
-        if(Door.bReverseDirection/*GetRightMost(String(Door.Mesh.StaticMesh)) == "R"*/) {
+        if(Door.bReverseDirection) {
             Door.Mesh.SetStaticMesh(MainMeshR);
         }
         else {
@@ -1558,7 +1575,6 @@ Exec Function ChangeDoorMeshType(String MeshType, Name CustomSndMat='Default') {
             }
         Door.DoorMaterial = SndMat;
     }
-    //ConsoleCommand("Set OLDoor DoorMeshType" @ MT);
 }
 
 Exec Function TSVCommand() {
@@ -2494,7 +2510,7 @@ Exec Function ChangeChrisModel(String Model, Bool ForGroom=false) {
             Mesh = SkeletalMesh'demochris.Mesh.chriswalker';
             break;
         Default:
-            SendMsg("Wrong Model Name!");
+            SendMsg("Wrong Model Name! Available:\nChris\nGroom\nGroomLab\nLady\Blake\Demo");
             return;
             break;
     }
@@ -2529,7 +2545,7 @@ Exec Function SpawnDoor(EOLDoorMeshType MeshType) {
     Rot.Roll = 0;
     C = Pawn.Location + (Normal(Vector(Pawn.Rotation)) * 100);
     Door = Spawn(Class'OLDoor', Self,, C, Rot);
-    Door.DoorMeshType=MeshType;
+    Door.DoorMeshType = MeshType;
 }
 
 Exec Function ScaleEnemy(Float X=1, Float Y=1, Float Z=1) {
@@ -2565,30 +2581,6 @@ Exec Function ToggleBhop() {
 
 Exec Function ToggleAutoBunnyHop() {
     bAutoBunnyHop = !bAutoBunnyHop;
-}
-
-Exec Function ChangeLady(Bool Groom=false) {
-    local OLEnemySoldier Enemy;
-    local OLEnemyGroom Enemy2;
-
-    if(Groom) {
-        Foreach AllActors(Class'OLEnemyGroom', Enemy2) {
-            Enemy2.Mesh.SetSkeletalMesh(SkeletalMesh'chrislady.Mesh.chrislady');
-            Enemy2.Mesh.SetMaterial(0, MaterialInstanceConstant'chrislady.mats.Arms');
-            Enemy2.Mesh.SetMaterial(1, MaterialInstanceConstant'chrislady.mats.Legs');
-            Enemy2.Mesh.SetMaterial(2, MaterialInstanceConstant'chrislady.mats.Skin');
-            SendMsg("Lady Chris is Activated!");
-        }
-    } 
-    else {
-        Foreach AllActors(Class'OLEnemySoldier', Enemy) {
-            Enemy.Mesh.SetSkeletalMesh(SkeletalMesh'chrislady.Mesh.chrislady');
-            Enemy.Mesh.SetMaterial(0, MaterialInstanceConstant'chrislady.mats.Arms');
-            Enemy.Mesh.SetMaterial(1, MaterialInstanceConstant'chrislady.mats.Legs');
-            Enemy.Mesh.SetMaterial(2, MaterialInstanceConstant'chrislady.mats.Skin');
-            SendMsg("Lady Chris is Activated!");
-        }
-    }
 }
 
 Function DisableInput(Bool Input) {
@@ -2642,6 +2634,24 @@ Function DisableInput(Bool Input) {
     HeroInput.bEdgeBack=false;
     HeroInput.bEdgeLeft=false;
     HeroInput.bEdgeRight=false;
+}
+
+Exec Function CPP() {
+    local OLEnemySoldier Soldier;
+
+    Foreach AllActors(Class'OLEnemySoldier', Soldier) {
+        Soldier.Mesh.SetSkeletalMesh(SkeletalMesh'02_Player.Pawn.Miles_beheaded');
+        Soldier.Mesh.SetAnimTreeTemplate(AnimTree'02_Behaviors.Player.Player_AnimTree');
+        Soldier.Mesh.SetPhysicsAsset(PhysicsAsset'02_Player.Pawn.Player_Physics');
+        Soldier.Mesh.AnimSets[0] = AnimSet'03_Hero.Hero-01_AS';
+    }
+    return;
+    PickerHero(Pawn).Mesh.SetAnimTreeTemplate(AnimTree'02_Behaviors.Enemy.Generic_AnimTree');
+    PickerHero(Pawn).Mesh.SetSkeletalMesh(SkeletalMesh'Prison_01-LD.Duponts.Mesh.Dupont');
+    //PickerHero(Pawn).Mesh.SetAnimTreeTemplate(AnimTree'02_Behaviors.Enemy.Generic_AnimTree');
+    PickerHero(Pawn).Mesh.AnimSets[0] = AnimSet'01_Animated_Props.SurgeonWeapon.SurgeonWeapon_GP-AS';
+    //PickerHero(Pawn).Mesh.SetSkeletalMesh(SkeletalMesh'Prison_01-LD.Duponts.Mesh.Dupont');
+    //PickerHero(Pawn).Mesh.AnimSets[0] = AnimSet'01_Animated_Props.SurgeonWeapon.SurgeonWeapon_GP-AS';
 }
 
 Exec Function ChangePlayerModel(String CustomPlayer) {
@@ -2824,6 +2834,108 @@ Exec Function OffBaseLight() {
 
 /******************************************OTHER FUNCTIONS******************************************/
 
+Exec Function ToggleCrabGame() {
+    CrabGameState = !CrabGameState;
+    if(CrabGameState) {
+        WorldInfo.Game.SetTimer(10, true, 'CrabGame', Self);
+        SendMsg("CRAB GAME STARTED, ENJOY!");
+    }
+    else {
+        WorldInfo.Game.ClearTimer('CrabGame', Self);
+        SendMsg("CRAB GAME DISABLED!");
+    }
+}
+
+Function CrabGame() {
+    if(PickerHero(Pawn).Velocity != Vect(0, 0, 0) && PickerHero(Pawn).LocomotionMode == LM_Cinematic) {
+        SendMsg("Don't move!");
+        Reload();
+    }
+    else {
+        SendMsg("Good job!");
+    }
+}
+
+Exec Function ToggleMathTasks() {
+    MathTasksState = !MathTasksState;
+    if(MathTasksState) {
+        WorldInfo.Game.SetTimer(10, false, 'MathTasks', Self);
+        SendMsg("MATH TASKS STARTED, ENJOY!");
+    }
+    else {
+        WorldInfo.Game.ClearTimer('MathTasks', Self);
+        SendMsg("MATH TASKS DISABLED!");
+    }
+}
+
+Function MathTasks() {
+    MathTasksGlobalA = Rand(1000);
+    MathTasksGlobalB = Rand(1000);
+    Switch(Rand(3)) {
+        case 0:
+            MathTasksTempOperation = 0;
+            PickerHud(HUD).MathTasksOperation = "+";
+            break;
+        case 1:
+            if(MathTasksGlobalA < MathTasksGlobalB) {
+                MathTasks();
+                return;
+                break;
+            }
+            MathTasksTempOperation = 1;
+            PickerHud(HUD).MathTasksOperation = "-";
+            break;
+        case 2:
+            MathTasksTempOperation = 2;
+            PickerHud(HUD).MathTasksOperation = "*";
+            break;
+        case 3:
+            MathTasksTempOperation = 2;
+            PickerHud(HUD).MathTasksOperation = "*";
+            break;
+        
+    }
+    DisableInput(true);
+    DebugFreeCamSpeed = 0;
+    PlayerInput.ResetInput();
+    MathTasksTimer = true;
+    PickerHud(HUD).MathTasksHUD = true;
+    WorldInfo.Game.SetTimer(10, false, 'MathTasksCheck', Self);
+}
+
+Function MathTasksCheck() {
+    local String RightAnswer;
+
+    Switch(MathTasksTempOperation) {
+        case 0:
+            RightAnswer = String(MathTasksGlobalA + MathTasksGlobalB);
+            break;
+        case 1:
+            RightAnswer = String(MathTasksGlobalA - MathTasksGlobalB);
+            break;
+        case 2:
+            RightAnswer = String(MathTasksGlobalA * MathTasksGlobalB);
+            break;
+    }
+    MathTasksGlobalA = 0;
+    MathTasksGlobalB = 0;
+    MathTasksTimer = false;
+    PickerHud(HUD).MathTasksHUD = false;
+    if(PickerInput(PlayerInput).MathTasksAnswer != RightAnswer) {
+        Reload();
+        SendMsg("Wrong! Right answer:" @ RightAnswer);
+    }
+    else {
+        DS(5);
+        SendMsg("Right! Good Job!");
+    }
+    PickerInput(PlayerInput).MathTasksAnswer = "";
+    DisableInput(false);
+    PlayerInput.ResetInput();
+    DebugFreeCamSpeed = Default.DebugFreeCamSpeed;
+    WorldInfo.Game.SetTimer(10, false, 'MathTasks', Self);
+}
+
 /****************** ALIASES ******************/
 
 Exec Function DS(Float Dmg) {
@@ -2834,8 +2946,8 @@ Exec Function Bind(String Key, String Command) {
     ConsoleCommand("SetBind" @ Key @ Command);
 }
 
-Exec Function CP(String CP, Bool SV=false, Bool FC=false) {
-    Checkpoint(CP, SV, FC);
+Exec Function CP(String CP, Bool SV=false) {
+    Checkpoint(CP, SV);
 }
 
 Exec Function SME(ESpecialMoveType SpecialMove) {
@@ -2850,8 +2962,16 @@ Exec Function GS(Float Speed=1) {
     SetGameSpeed(Speed);
 }
 
-Exec Function CB(Int Increase) {
+Exec Function CBatt(Int Increase) {
     ChangeBatteries(Increase);
+}
+
+Exec Function CHealth(Int NewHealth) {
+    ChangePlayerHealth(NewHealth);
+}
+
+Exec Function Van(Bool Force=true) { //NOT DUNGEON MASTER!!
+    ToggleDisAI(Force);
 }
 
 Exec Function InfBatt() {
@@ -3050,8 +3170,18 @@ Exec Function RandLightColor() {
     }
 }
 
+Exec Function ToggleRandDoors(Float Speed=0.3, Bool Stop=false) {
+    if(!Stop) {
+        WorldInfo.Game.SetTimer(Speed, true, 'RandDoors', Self);
+    }
+    else {
+        WorldInfo.Game.ClearTimer('RandDoors', Self);
+    }
+}
+
 Exec Function RandDoors() {
     local String Mat, SndMat;
+
     Switch(Rand(24)) {
         case 0:
             Mat = "Undefined";
@@ -3674,6 +3804,19 @@ Function Bool AllowAutoJump() {
         }
     }
     return False;
+}
+
+Event Tick(Float DeltaTime) {
+    if(PickerInput(PlayerInput).IsKeyPressed('LeftControl') || PickerInput(PlayerInput).IsKeyPressed('RightControl')) {
+            //if(Key == 'V') {
+             //   SendMsg("Ddsdsd");
+           // }
+            PickerInput(PlayerInput).bCtrlPressed = true;
+        }
+        else {
+            PickerInput(PlayerInput).bCtrlPressed = false;
+        }
+    Super.Tick(DeltaTime);
 }
 
 DefaultProperties
