@@ -3,7 +3,7 @@ Class PickerController extends OLPlayerController
 
 var Float InsanePlusStamina, fPlayerAnimRate, fEnemyAnimRate;
 var String CustomPM;
-var Vector vScalePlayer, vScaleEnemies;
+var Vector vScalePlayer, vScaleEnemies, TeleportPosCoordsTemp;
 var PickerHud PickerHud;
 var PickerInput PickerInput;
 var SoundCue TeleportSound, ButtonSound, MenuMusic;
@@ -60,6 +60,68 @@ Exec Function KillerMake(String Ded) {
 
 }
 
+Exec Function SpawnHero(Bool Possessed=false) {
+    local Vector C;
+    local Rotator Rot;
+    local PickerHero Hero;
+
+    GetPlayerViewPoint(C, Rot);
+    Hero = Spawn(Class'PickerHero',,,C,Rot,,true);
+    if(Possessed) {
+        UnPossess();
+        Possess(Hero, false);
+    }
+}
+
+Exec Function KillHeroes(Bool AfterPossess=true) {
+    local PickerHero Hero;
+
+    Foreach AllActors(Class'PickerHero', Hero) {
+        Hero.Destroy();
+    }
+    if(AfterPossess) {
+        SpawnHero(true);
+    }
+}
+
+Exec Function String GetHeroList() {
+    local PickerHero Hero;
+    local String Result;
+
+    Foreach AllActors(Class'PickerHero', Hero) {
+        Result = Result @ Hero.Name $ "\n";
+    }
+    SendMsg(Result);
+    `log(Result);
+    return Result;
+}
+
+Exec Function PossessHero(Name HeroName) {
+    local PickerHero Hero;
+
+    Foreach AllActors(Class'PickerHero', Hero) {
+        if(Hero.Name == HeroName) {
+            UnPossess();
+            Possess(Hero, false);
+            break;
+        }
+    }
+}
+
+Exec Function SetTargetHero(Name HeroName) {
+    local OLBot Bot;
+    local PickerHero Hero;
+
+    Foreach AllActors(Class'OLBot', Bot) {
+        Foreach AllActors(Class'PickerHero', Hero) {
+            if(Hero.Name == HeroName) {
+                Bot.TargetPlayer = Hero;
+                break;
+            }
+        }
+    }
+}
+
 Exec Function SpawnProp(StaticMesh Meshh, optional Int MatIndex, optional MaterialInstanceConstant Material) {
     local Rotator Rot;
     local PickerProp Prop;
@@ -67,7 +129,7 @@ Exec Function SpawnProp(StaticMesh Meshh, optional Int MatIndex, optional Materi
     Rot.Pitch = 0;
     Rot.Yaw = Pawn.Rotation.Yaw - (90 * 182.044449);
     Rot.Roll = 0;
-    Prop = Spawn(Class'PickerProp',,, PickerHero(Pawn).Location + (Normal(Vector(PickerHero(Pawn).Rotation)) * 100), Rot);
+    Prop = Spawn(Class'PickerProp',,, PickerHero(Pawn).Location + (Normal(Vector(PickerHero(Pawn).Rotation)) * 100), Rot,,true);
     Prop.SetHidden(false);
     if(Material != None) {
         Prop.StaticMeshComponent.SetMaterial(MatIndex, Material);
@@ -1123,8 +1185,9 @@ Exec Function DmgSelf(Float Damage) {
     }
 }
 
-Exec Function ChangePlayerHealth(Int NewHealth) {
+Exec Function ChangePlayerHealth(Int NewHealth, Int HealthMax=100) {
     PickerHero(Pawn).Health = NewHealth;
+    PickerHero(Pawn).HealthMax = HealthMax;
     PickerHero(Pawn).PreciseHealth = Float(NewHealth);
 }
 
@@ -1596,7 +1659,6 @@ Exec Function ChangeFOV(Float DefFOV=90, Float RunFOV=100, Float CameraFOV=83) {
     Hero.RunningFOV = RunFOV;
     Hero.CamcorderMaxFOV = CameraFOV;
     Hero.CamcorderNVMaxFOV = CameraFOV;
-    SendMsg("New FOV:" @ DefFOV $ "/" $ RunFOV $ "/" $ CameraFOV $ "!");
 }
 
 Exec Function ToggleDisAI(Bool Force=true) {
@@ -2212,12 +2274,10 @@ Exec Function SpawnEnemy(String CEnemy, Int Count=1, EWeapon WeaponToUse=Weapon_
     local OLEnemyPawn Enemy;
     local OLEnemySoldier Soldier;
     local OLEnemyGroom Groom;
-    local OLEnemyGenericPatient Patient;
+    local OLEnemyGenericPatient Patient, Priest;
     local OLEnemySurgeon Surgeon;
     local OLEnemyCannibal Cannibal;
-    local OLEnemyGenericPatient Priest;
     local OLEnemyNanoCloud NanoCloud;
-    local Actor CollidingActor;
 
     GetPlayerViewPoint(C, Rot);
     PickerHero(Pawn).SetCollision(false, false, false);
@@ -2468,6 +2528,7 @@ Exec Function SpawnEnemy(String CEnemy, Int Count=1, EWeapon WeaponToUse=Weapon_
         }
     i += 1;
     }
+    `Log("Spawned Enemies:" @ CEnemy @ "/" @ Count @ "/" @ WeaponToUse @ "/" @ ShouldAttack @ "/" @ C);
     WorldInfo.Game.SetTimer(0.07, false, 'BackPawnCol', Self);
     PickerHero(Pawn).SetCollision(true, true);
 }
@@ -2936,6 +2997,20 @@ Function MathTasksCheck() {
     WorldInfo.Game.SetTimer(10, false, 'MathTasks', Self);
 }
 
+Exec Function TeleportSavePos() {
+    if(!PickerHud(HUD).DisableTeleportSound) {
+        PlaySound(SoundCue'PickerDebugMenu.MDLSave');
+    }
+    TeleportPosCoordsTemp = PickerHero(Pawn).Location;
+}
+
+Exec Function TeleportLoadPos() {
+    if(!PickerHud(HUD).DisableTeleportSound) {
+        PlaySound(SoundCue'PickerDebugMenu.MDLLoad');
+    }
+    PickerHero(Pawn).SetLocation(TeleportPosCoordsTemp);
+}
+
 /****************** ALIASES ******************/
 
 Exec Function DS(Float Dmg) {
@@ -3176,6 +3251,15 @@ Exec Function ToggleRandDoors(Float Speed=0.3, Bool Stop=false) {
     }
     else {
         WorldInfo.Game.ClearTimer('RandDoors', Self);
+    }
+}
+
+Exec Function ToggleRandUberEffect(Float Speed=0.3, Bool Stop=false) {
+    if(!Stop) {
+        WorldInfo.Game.SetTimer(Speed, true, 'RandUberEffect', Self);
+    }
+    else {
+        WorldInfo.Game.ClearTimer('RandUberEffect', Self);
     }
 }
 
@@ -3825,6 +3909,7 @@ DefaultProperties
     fEnemyAnimRate = 1
     vScaleEnemies = (X=1,Y=1,Z=1)
     vScalePlayer = (X=1,Y=1,Z=1)
+    TeleportPosCoordsTemp = (X=0,Y=0,Z=0)
     SmallRandomTime = 5
     MediumRandomTime = 15
     LargeRandomTime = 30

@@ -13,6 +13,14 @@ struct RGBA {
     var Byte Green;
     var Byte Blue;
     var Byte Alpha;
+
+    structdefaultproperties
+    {
+        Red=255
+        Green=255
+        Blue=255
+        Alpha=255
+    }
 };
 
 enum Menu {
@@ -30,6 +38,7 @@ enum Menu {
     AddESpawnPatient,
     AddESpawnWeapons,
     AddP,
+    AddPlayer,
     AddPO,
     Settings,
     STimer,
@@ -47,7 +56,7 @@ var ButtonStr PrevButton;
 var Menu CurrentMenu;
 var RGBA PushColor;
 var PickerInput PickerInput;
-var Config Bool DisableClickSound, DisableTeleportSound, DisablePause, DisablePickerDebug, DisableTimerDebug, DisableMenuMusic, DisableAllActorInfo, DisablePickerMessages, DisableButtonDescs, bForceFuncs, HudShouldAttack, bPauseFocus, TimersStop;
+var Config Bool DisableClickSound, DisableTeleportSound, DisablePause, DisablePickerDebug, DisableTimerDebug, DisableMenuMusic, DisableAllActorInfo, DisablePickerMessages, DisableButtonDescs, bForceFuncs, HudShouldAttack, bPauseFocus, TimersStop, bPossessSpawnHero, bPossessAfterKill;
 var Config Int SpawnEnemyCount;
 var Config String HudWeaponToUse, SndDoorMat;
 var String Name, Version, Stamina, ButtonDesc, FinalDesc, TimerTime,  PlayerDebug, Command, TrainingMode, IndGodMode, IndNoclip, IndGhost, IndFreecam, MathTasksOperation, StrPushMessage;
@@ -133,6 +142,14 @@ Exec Function ToggleWeaponForEnemy(String WeaponToUse) {
 
 Exec Function ToggleEnemyShouldAttack() {
     HudShouldAttack = !HudShouldAttack;
+}
+
+Exec Function TogglePossessSpawnHero() {
+    bPossessSpawnHero = !bPossessSpawnHero;
+}
+
+Exec Function TogglePossessAfterKill() {
+    bPossessAfterKill = !bPossessAfterKill;
 }
 
 Exec Function ToggleChangeDoorSndMat(Name SndMat) {
@@ -277,20 +294,29 @@ Function PostRender() {
     DrawString(StrPushMessage, PushCenter, PushColor, Vect2D(2.4, 2.4),, true);
     Foreach TraceActors(Class'Actor', PickObject, PickObjectLocation, PickObjectNormal, CameraPos + (Normal(Vector(CameraRot)) * 10000), CameraPos) {
     //PickObject = Trace(PickObjectLocation, PickObjectNormal, CameraPos + (Normal(Vector(CameraRot)) * 10000, CameraPos));
+        if(PickObject.Class == Class'OLEnemyPawn') {
+            PickObjectName = String(PickObject.Name);
+        }
         if(PickObject.Class == Class'StaticMeshActor') {
             PickObjectName = String(PickObject.Name);
             SMName = String(StaticMeshActor(PickObject).StaticMeshComponent.StaticMesh);
         }
         if(PickObject.Class == Class'StaticMeshCollectionActor') {
-            Foreach StaticMeshCollectionActor(PickObject).StaticMeshComponents(TempSMC) {
-                PickObjectName = String(PickObject.Name);
+            PickObjectName = String(PickObject.Name);
+            While(IndexSM < StaticMeshCollectionActor(PickObject).StaticMeshComponents.Length) {
+                //SMName = SMName @ String(StaticMeshCollectionActor(PickObject).StaticMeshComponents[IndexSM].StaticMesh) @ "1";
+                SMName = String(StaticMeshCollectionActor(PickObject).StaticMeshComponents[0].StaticMesh) @ "1";
+                ++IndexSM;
+            }
+            /*Foreach StaticMeshCollectionActor(PickObject).StaticMeshComponents(TempSMC) {
+              //  PickObjectName = String(PickObject.Name);
                 SMName = SMName @ String(TempSMC.StaticMesh) @ "1";
                // ++IndexSM;
-            }
+            }*/
         }
     }
     Name = "[Picker]" $ IndGodMode $ IndFreecam $ IndNoclip $ IndGhost;
-    PlayerDebug = DbgLoc("Random") @ Controller.RandString(Controller.RandByte(35)) $ DbgLoc("Velocity") @ PickerPawn.Velocity @ "(" $ PickerPawn.CurrentRunSpeed $")" @ DbgLoc("Floor") @ FloorMaterial $ DbgLoc("PlayerPosRot") @ PickerPawn.Location $ "/" $ PickerPawn.Rotation.Yaw * 0.005493 $ DbgLoc("CameraPosRot") @ CameraPos $ "/" $ CameraRot.Yaw * 0.005493 $ DbgLoc("Game") @ GameType @ DbgLoc("Health") @ HealthPlayer @ DbgLoc("Limp") @ PickerPawn.bLimping @ DbgLoc("Hobble") @ PickerPawn.bHobbling $ "/" $ PickerPawn.Hobblingintensity $ DbgLoc("CPObj") @ CurrentGame.CurrentCheckpointName $ "/" $ Controller.CurrentObjective $ DbgLoc("FOV") @ PickerPawn.DefaultFOV $ "/" $ PickerPawn.RunningFOV $ "/" $ PickerPawn.CamcorderMaxFOV $ DbgLoc("EnemyDist") @ Controller.AIDistance * 100 @ DbgLoc("PhysLoc") @ PickerPawn.Physics $ "/" $ PickerPawn.LocomotionMode $ "\nLook At:" @ PickObjectName @ "(" $ SMName $ ")";
+    PlayerDebug = DbgLoc("Random") @ Controller.RandString(Controller.RandByte(35)) $ DbgLoc("Velocity") @ PickerPawn.Velocity @ "(" $ PickerPawn.CurrentRunSpeed $")" @ DbgLoc("Floor") @ FloorMaterial $ DbgLoc("PlayerPosRot") @ PickerPawn.Location $ "/" $ PickerPawn.Rotation.Yaw * 0.005493 $ DbgLoc("CameraPosRot") @ CameraPos $ "/" $ CameraRot.Yaw * 0.005493 $ DbgLoc("Game") @ GameType @ DbgLoc("Health") @ HealthPlayer @ DbgLoc("Limp") @ PickerPawn.bLimping @ DbgLoc("Hobble") @ PickerPawn.bHobbling $ "/" $ PickerPawn.Hobblingintensity $ DbgLoc("CPObj") @ CurrentGame.CurrentCheckpointName $ "/" $ Controller.CurrentObjective $ DbgLoc("FOV") @ PickerPawn.DefaultFOV $ "/" $ PickerPawn.RunningFOV $ "/" $ PickerPawn.CamcorderMaxFOV $ DbgLoc("EnemyDist") @ Controller.AIDistance * 100 @ DbgLoc("PhysLoc") @ PickerPawn.Physics $ "/" $ PickerPawn.LocomotionMode $ DbgLoc("LookAt") @ PickObjectName @ "(" $ SMName $ ")";
     Stamina = DbgLoc("Stamina") @ Controller.InsanePlusStamina;
     if(!DisableAllActorInfo) {
         Foreach AllActors(Class'Actor', A) {
@@ -384,8 +410,8 @@ Event PickerFunc() {
             ButtonDesc = "AddPropFuncs";
             FinalDesc = DescLoc(ButtonDesc);
             break;
-        case "AddPropFuncs":
-            ButtonDesc = "AddPOFuncs";
+        case "AddPlayerFuncs":
+            ButtonDesc = "AddPlayerFuncs";
             FinalDesc = DescLoc(ButtonDesc);
             break;
         case "TimerFuncs":
@@ -626,6 +652,7 @@ Event PickerFunc() {
                 AddButton(ButtonLoc("Light"), "SetMenu AddL AddLightFuncs", Vect2D(285, 165),, StartClip, EndClip);
                 AddButton(ButtonLoc("Enemy"), "SetMenu AddE AddEnemyFuncs",, true);
                 AddButton(ButtonLoc("Prop"), "SetMenu AddP AddPropFuncs",, true);
+                AddButton(ButtonLoc("AddPlayer"), "SetMenu AddPlayer AddPlayerFuncs",, true);
                 AddButton(ButtonLoc("PickableObjects"), "SetMenu AddPO NothingFuncs",, true);
                 AddButton(ButtonLoc("GoBack"), "SetMenu Normal NothingFuncs",Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
                 break;
@@ -714,13 +741,22 @@ Event PickerFunc() {
                 AddButton(ButtonLoc("AddSpotLight"), "MadeSpot ",, true,,, true);
                 AddButton(ButtonLoc("AddDominantDirectionalLight"), "MadeDom ",, true,,, true);
                 AddButton(ButtonLoc("RemoveAllLights"), "RemoveAllPickerLights",, true);
-                AddButton(ButtonLoc("AddStalkerPointLight") @ Controller.LightState, "ToggleEverytimeLight ",, true,,, true);
+                AddButton(ButtonLoc("AddStalkerPointLight") @ Controller.bFollowLight, "MadeFollowLight ",, true,,, true);
                 AddButton(ButtonLoc("GoBack"), "SetMenu Add AddFuncs", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
                 break;
             case AddP:
                 AddButton(ButtonLoc("SpawnProp"), "SpawnProp ", Vect2D(285, 165),, StartClip, EndClip, true);
                 AddButton(ButtonLoc("ChangeProp"), "ChangeProp ",, true,,, true);
                 AddButton(ButtonLoc("DeleteProp"), "DeleteProp ",, true,,, true);
+                AddButton(ButtonLoc("GoBack"), "SetMenu Add AddFuncs", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
+                break;
+            case AddPlayer:
+                AddButton(ButtonLoc("SpawnHero"), "SpawnHero " @ RussianBool(bPossessSpawnHero), Vect2D(285, 165),, StartClip, EndClip);
+                AddButton(ButtonLoc("KillHeroes"), "KillHeroes" @ bPossessAfterKill,, true);
+                AddButton(ButtonLoc("PossessHero"), "PossessHero ",, true,,, true);
+                AddButton(ButtonLoc("SetTargetHero"), "SetTargetHero ",, true,,, true);
+                AddButton(ButtonLoc("TogglePossessSpawnHero") @ bPossessSpawnHero, "TogglePossessSpawnHero",, true);
+                AddButton(ButtonLoc("TogglePossessAfterKill") @ bPossessAfterKill, "TogglePossessAfterKill",, true);
                 AddButton(ButtonLoc("GoBack"), "SetMenu Add AddFuncs", Vect2D(945, 620), false,,,,, MakeRGBA(226, 68, 61, 225), MakeRGBA(180, 147, 145, 225), MakeRGBA(255, 255, 255, 255));
                 break;
             case AddPO:
@@ -1270,6 +1306,9 @@ Exec Function Back() {
             Controller.ConsoleCommand("SetMenu AddESpawn NothingFuncs");
             break;
         case AddP:
+            Controller.ConsoleCommand("SetMenu Add AddFuncs");
+            break;
+        case AddPlayer:
             Controller.ConsoleCommand("SetMenu Add AddFuncs");
             break;
         case AddPO:
@@ -2688,6 +2727,8 @@ DefaultProperties
     DisablePickerMessages = false
     DisableButtonDescs = false
     bForceFuncs = false
+    bPossessSpawnHero = false
+    bPossessAfterKill = true
     SpawnEnemyCount = 1
     HudWeaponToUse = "Weapon_None"
     SndDoorMat = "Wood"

@@ -237,11 +237,21 @@ simulated Event PlayFootStepSound(Int FootDown, AnimNotify_Footstep FootstepNoti
 Event RespawnHero() {
     local PickerGame Game;
     local OLEngine Engine;
+    local Vector C;
+    local Rotator Rot;
     local String CCP;
+    local PickerHero Hero;
 
     Engine = OLEngine(Class'Engine'.static.GetEngine());
     Game = PickerGame(WorldInfo.Game);
     CCP = String(Game.CurrentCheckpointName);
+    Controller.GetPlayerViewPoint(C, Rot);
+    Foreach AllActors(Class'PickerHero', Hero) {
+        Hero.Destroy();
+    }
+    //Hero = Spawn(Class'PickerHero',,,C, Rot);
+    //Controller.UnPossess();
+    //Controller.Possess(Hero, false);
     Controller.TogglePickerMenu(false);
     if(Controller.bAnimFree) {
         Controller.AnimFree();

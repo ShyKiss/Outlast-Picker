@@ -86,7 +86,7 @@ Function Bool Key(Int ControllerId, Name Key, EInputEvent Event, Float AmountDep
             return true;
         }
     }
-    else if(PickerHud(HUD).MathTasksHUD && MathTasksTimer) {
+    else if(PickerHud(HUD).MathTasksHUD && MathTasksTimer && Event == IE_Pressed || PickerHud(HUD).MathTasksHUD && MathTasksTimer && Event == IE_Repeat) {
         Switch(Key) {
             case 'Delete':
                 MathTasksAnswer = "";
@@ -95,10 +95,10 @@ Function Bool Key(Int ControllerId, Name Key, EInputEvent Event, Float AmountDep
                 MathTasksAnswer = Left(MathTasksAnswer, Len(MathTasksAnswer)-1);
                 break;
             case 'LeftControl':
-                return true;
+                return false;
                 break;
         }
-        return false;
+        return true;
     }
     return false;
 }
